@@ -1,6 +1,6 @@
 # Arena Ticketing Platform
 
-Sistem backend pentru gestionarea vânzărilor de bilete la evenimente sportive, dezvoltat în Spring Boot. Acest proiect va fi continuarea unui proiect realizat în semestrul trecut tot în Spring Boot la care vom adăuga noi funcționalități cu scopul de a livra un produs finit, stabil și pregătit pentru utilizare reală.
+Scopul principal al aplicației este de a oferi o platformă digitală modernă prin care suporterii unei echipe de fotbal își pot achiziționa bilete la meciuri. Acest proiect va fi continuarea unui proiect realizat în semestrul trecut tot în Spring Boot la care vom adăuga noi funcționalități cu scopul de a livra un produs finit, stabil și pregătit pentru utilizare reală.
 Repository inițial: https://github.com/CaruntuRazvan/Arena-ticketing-backend
 
 ## Tehnologii și Framework-uri
