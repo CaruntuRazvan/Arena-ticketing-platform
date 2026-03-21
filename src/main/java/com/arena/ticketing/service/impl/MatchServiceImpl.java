@@ -35,7 +35,7 @@ public class MatchServiceImpl implements MatchService {
     }
 
     @Override
-    public Match createMatch(MatchRequestDTO dto) {
+    public MatchDTO createMatch(MatchRequestDTO dto) {
         Stadium stadium = stadiumRepository.findById(dto.getStadiumId())
                 .orElseThrow(() -> new RuntimeException("Stadionul nu a fost găsit!"));
 
@@ -43,8 +43,24 @@ public class MatchServiceImpl implements MatchService {
         match.setOpponentName(dto.getOpponentName());
         match.setMatchDate(dto.getMatchDate());
         match.setStadium(stadium);
+        match.setStatus(MatchStatus.SCHEDULED);
 
-        return matchRepository.save(match);
+        Match savedMatch = matchRepository.save(match);
+        return mapToDTO(savedMatch);
+    }
+    @Override
+    public List<MatchDTO> getAllMatchesDTO() {
+        return matchRepository.findAll().stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<MatchDTO> getUpcomingMatchesDTO() {
+        return matchRepository.findByMatchDateAfterAndStatus(LocalDateTime.now(), MatchStatus.SCHEDULED)
+                .stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -74,10 +90,6 @@ public class MatchServiceImpl implements MatchService {
         return matchRepository.save(match);
     }
 
-    @Override
-    public List<Match> getAllMatches() {
-        return matchRepository.findAll();
-    }
 
     @Override
     public Double getPriceForSector(Long matchId, Long sectorId) {
@@ -85,10 +97,6 @@ public class MatchServiceImpl implements MatchService {
         return getRequiredPrice(matchId, sectorId);
     }
 
-    @Override
-    public List<Match> getUpcomingMatches() {
-        return matchRepository.findByMatchDateAfterAndStatus(LocalDateTime.now(), MatchStatus.SCHEDULED);
-    }
 
     @Override
     public MatchStatsDTO getMatchStatistics(Long matchId) {
@@ -176,5 +184,15 @@ public class MatchServiceImpl implements MatchService {
             matchRepository.saveAll(pastMatches);
             System.out.println("Automatizare: " + pastMatches.size() + " meciuri au fost trecute în status FINISHED.");
         }
+    }
+
+    private MatchDTO mapToDTO(Match match) {
+        MatchDTO dto = new MatchDTO();
+        dto.setId(match.getId());
+        dto.setOpponentName(match.getOpponentName());
+        dto.setMatchDate(match.getMatchDate());
+        dto.setStatus(match.getStatus());
+        dto.setStadiumName(match.getStadium().getName());
+        return dto;
     }
 }

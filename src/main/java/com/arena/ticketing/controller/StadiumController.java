@@ -1,8 +1,10 @@
 package com.arena.ticketing.controller;
 
+import com.arena.ticketing.dto.SectorDTO;
 import com.arena.ticketing.dto.StadiumDTO;
 import com.arena.ticketing.service.StadiumService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import com.arena.ticketing.dto.SectorRequestDTO;
 import com.arena.ticketing.model.Sector;
@@ -35,11 +37,11 @@ public class StadiumController {
         return ResponseEntity.ok(stadiumService.createStadium(stadiumDTO));
     }
 
-
     @Operation(summary = "Adăugare sector la stadion",
-            description = "Permite adăugarea unui nou sector la un stadion existent.")
+            description = "Permite adăugarea unui nou sector la un stadion existent și generează automat locurile aferente.")
     @PostMapping("/sectors")
-    public ResponseEntity<Sector> addSector(@Valid @RequestBody SectorRequestDTO dto) {
-        return ResponseEntity.ok(stadiumService.addSector(dto));
+    public ResponseEntity<SectorDTO> addSector(@Valid @RequestBody SectorRequestDTO dto) {
+        SectorDTO createdSector = stadiumService.addSector(dto);
+        return new ResponseEntity<>(createdSector, HttpStatus.CREATED);
     }
 }

@@ -1,5 +1,6 @@
 package com.arena.ticketing.controller;
 
+import com.arena.ticketing.dto.SeatDTO;
 import com.arena.ticketing.model.Seat;
 import com.arena.ticketing.service.SeatService;
 import com.arena.ticketing.dto.SeatStatusDTO;
@@ -17,9 +18,10 @@ public class SeatController {
     private final SeatService seatService; // Injectam Service-ul
 
     @Operation(summary = "Returnează toate locurile dintr-un sector",
-            description = "Permite obținerea listei complete a locurilor dintr-un sector specificat prin ID-ul său.")
+            description = "Permite obținerea listei complete a locurilor sub formă de DTO pentru a evita erorile de recursivitate.")
     @GetMapping("/sector/{sectorId}")
-    public ResponseEntity<List<Seat>> getSeatsBySector(@PathVariable Long sectorId) {
+    public ResponseEntity<List<SeatDTO>> getSeatsBySector(@PathVariable Long sectorId) {
+        // Schimbăm tipul returnat în List<SeatDTO>
         return ResponseEntity.ok(seatService.getSeatsBySector(sectorId));
     }
 

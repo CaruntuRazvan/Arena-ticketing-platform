@@ -1,13 +1,10 @@
 package com.arena.ticketing.controller;
 
+import com.arena.ticketing.dto.*;
 import com.arena.ticketing.model.Match;
 import com.arena.ticketing.model.MatchStatus;
 import com.arena.ticketing.service.MatchService;
 import com.arena.ticketing.model.MatchSectorPrice;
-import com.arena.ticketing.dto.MatchRequestDTO;
-import com.arena.ticketing.dto.PriceRequestDTO;
-import com.arena.ticketing.dto.MatchStatsDTO;
-import com.arena.ticketing.dto.SectorAvailabilityDTO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -30,21 +27,23 @@ public class MatchController {
     @Operation(summary = "Listare toate meciurile",
             description = "Returnează lista completă a meciurilor programate în sistem.")
     @GetMapping
-    public ResponseEntity<List<Match>> getAllMatches() {
-        return ResponseEntity.ok(matchService.getAllMatches());
+    public ResponseEntity<List<MatchDTO>> getAllMatches() {
+        return ResponseEntity.ok(matchService.getAllMatchesDTO());
     }
 
     @Operation(summary = "Listare meciuri viitoare",
             description = "Returnează lista meciurilor care urmează să aibă loc în viitor si nu au fost anulate.")
     @GetMapping("/upcoming")
-    public ResponseEntity<List<Match>> getUpcomingMatches() {
-        return ResponseEntity.ok(matchService.getUpcomingMatches());
+    public ResponseEntity<List<MatchDTO>> getUpcoming() {
+        // Aici transformi List<Match> în List<MatchDTO>
+        // folosind un mapper sau manual cu .stream().map(...)
+        return ResponseEntity.ok(matchService.getUpcomingMatchesDTO());
     }
 
     @Operation(summary = "Creare meci",
             description = "Permite crearea unui nou meci în sistem.")
     @PostMapping
-    public ResponseEntity<Match> createMatch(@Valid @RequestBody MatchRequestDTO dto) {
+    public ResponseEntity<MatchDTO> createMatch(@Valid @RequestBody MatchRequestDTO dto) {
         return ResponseEntity.ok(matchService.createMatch(dto));
     }
 

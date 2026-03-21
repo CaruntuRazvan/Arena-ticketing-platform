@@ -1,5 +1,6 @@
 package com.arena.ticketing.service.impl;
 
+import com.arena.ticketing.dto.SeatDTO;
 import com.arena.ticketing.model.Seat;
 import com.arena.ticketing.model.MatchSectorPrice;
 import com.arena.ticketing.repository.SeatRepository;
@@ -26,39 +27,48 @@ public class SeatServiceImpl implements SeatService {
 
 
     @Override
-    public List<Seat> getSeatsBySector(Long sectorId) {
-        return seatRepository.findBySectorId(sectorId);
+    public List<SeatDTO> getSeatsBySector(Long sectorId) {
+        return seatRepository.findBySectorId(sectorId)
+                .stream()
+                .map(seat -> new SeatDTO(
+                        seat.getId(),
+                        seat.getRowNumber(),
+                        seat.getSeatNumber(),
+                        seat.getSector().getId()))
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<SeatStatusDTO> getSeatsStatusByMatch(Long matchId, Long sectorId) {
-
+        // 1. Validări de bază
         if (!matchRepository.existsById(matchId)) {
             throw new TicketException("Meciul dorit nu a fost găsit!");
         }
 
-        // 2. Validăm existența sectorului (opțional, dar recomandat)
-        if (!seatRepository.existsBySectorId(sectorId)) {
-            // Dacă nu există niciun scaun în acest sector, probabil sectorul nu există
-            throw new TicketException("Sectorul dorit nu există sau nu are locuri.");
-        }
-
+        // 2. Luăm prețul (o singură interogare)
         Double price = matchSectorPriceRepository.findByMatchIdAndSectorId(matchId, sectorId)
                 .map(MatchSectorPrice::getPrice)
                 .orElseThrow(() -> new TicketException("Prețul pentru acest sector nu a fost configurat!"));
 
+        // 3. Luăm toate locurile din sector
         List<Seat> allSeats = seatRepository.findBySectorId(sectorId);
+        if (allSeats.isEmpty()) {
+            throw new TicketException("Sectorul nu are locuri configurate.");
+        }
 
+        // 4. OPTIMIZARE: Luăm toate ID-urile locurilor deja ocupate pentru acest meci și sector
+        // Avem nevoie de o metodă în TicketRepository: findOccupiedSeatIds(matchId, sectorId)
+        List<Long> occupiedSeatIds = ticketRepository.findOccupiedSeatIdsByMatchAndSector(matchId, sectorId);
+
+        // 5. Mapăm rapid în memorie
         return allSeats.stream().map(seat -> {
-            // Verificăm dacă există bilet pentru acest meci și acest loc
-            boolean isTaken = ticketRepository.existsByMatchIdAndSeatId(matchId, seat.getId());
-
+            boolean isAvailable = !occupiedSeatIds.contains(seat.getId());
 
             return new SeatStatusDTO(
                     seat.getId(),
                     seat.getRowNumber(),
                     seat.getSeatNumber(),
-                    !isTaken, // Este disponibil dacă NU este luat,
+                    isAvailable,
                     price
             );
         }).collect(Collectors.toList());

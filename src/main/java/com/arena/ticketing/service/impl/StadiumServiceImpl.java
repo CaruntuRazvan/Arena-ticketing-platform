@@ -1,5 +1,6 @@
 package com.arena.ticketing.service.impl;
 
+import com.arena.ticketing.dto.SectorDTO;
 import com.arena.ticketing.dto.StadiumDTO;
 import com.arena.ticketing.model.Stadium;
 import com.arena.ticketing.repository.StadiumRepository;
@@ -11,6 +12,8 @@ import com.arena.ticketing.model.Sector;
 import com.arena.ticketing.model.Seat;
 import org.springframework.stereotype.Service;
 import com.arena.ticketing.exception.TicketException;
+
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 import java.util.List;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,28 +50,41 @@ public class StadiumServiceImpl implements StadiumService {
             return dto;
         }).collect(Collectors.toList());
     }
+
     @Override
     @Transactional
-    public Sector addSector(SectorRequestDTO dto) {
+    public SectorDTO addSector(SectorRequestDTO dto) {
         Stadium stadium = stadiumRepository.findById(dto.getStadiumId())
                 .orElseThrow(() -> new TicketException("Stadionul nu a fost găsit!"));
 
         Sector sector = new Sector();
         sector.setName(dto.getName());
         sector.setStadium(stadium);
+        // Presupunând că ai adăugat câmpul price în Sector model și DTO
+        // sector.setBasePrice(dto.getBasePrice());
+
         Sector savedSector = sectorRepository.save(sector);
 
-        // Generăm automat locurile pentru acest sector
+        List<Seat> seatsToSave = new ArrayList<>();
+
         for (int i = 1; i <= dto.getRows(); i++) {
             for (int j = 1; j <= dto.getSeatsPerRow(); j++) {
                 Seat seat = new Seat();
                 seat.setRowNumber(i);
                 seat.setSeatNumber(j);
                 seat.setSector(savedSector);
-                seatRepository.save(seat);
+                seatsToSave.add(seat);
             }
         }
 
-        return savedSector;
+        // Salvăm toate locurile dintr-o singură mișcare (mult mai rapid!)
+        seatRepository.saveAll(seatsToSave);
+
+        // Returnăm un DTO curat
+        SectorDTO responseDTO = new SectorDTO();
+        responseDTO.setId(savedSector.getId());
+        responseDTO.setName(savedSector.getName());
+        responseDTO.setTotalSeats(seatsToSave.size());
+        return responseDTO;
     }
 }

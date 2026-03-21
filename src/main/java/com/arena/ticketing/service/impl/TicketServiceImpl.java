@@ -3,9 +3,11 @@ package com.arena.ticketing.service.impl;
 import com.arena.ticketing.dto.MatchRevenueReportDTO;
 import com.arena.ticketing.dto.TicketListDTO;
 import com.arena.ticketing.dto.TicketRequestDTO;
+import com.arena.ticketing.dto.TicketResponseDTO;
 import com.arena.ticketing.exception.TicketException;
 import com.arena.ticketing.model.*;
 import com.arena.ticketing.repository.*;
+import com.arena.ticketing.service.EmailService;
 import com.arena.ticketing.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,10 +28,11 @@ public class TicketServiceImpl implements TicketService {
     private final SeatRepository seatRepository;
     private final UserRepository userRepository;
     private final MatchSectorPriceRepository priceRepository;
+    private final EmailService emailService;
 
     @Override
     @Transactional(isolation = Isolation.SERIALIZABLE)
-    public List<Ticket> buyTickets(TicketRequestDTO request) {
+    public List<TicketResponseDTO> buyTickets(TicketRequestDTO request) {
         if (request.getSeatIds() == null || request.getSeatIds().isEmpty()) {
             throw new TicketException("Trebuie sa selectati cel putin un loc!");
         }
@@ -57,6 +60,7 @@ public class TicketServiceImpl implements TicketService {
         if (match.getMatchDate().isBefore(LocalDateTime.now())) throw new TicketException("Meciul a trecut deja!");
 
         List<Ticket> savedTickets = new ArrayList<>();
+        List<TicketResponseDTO> responseList = new ArrayList<>();
 
         // 3. Procesăm fiecare loc din listă
         for (Long seatId : request.getSeatIds()) {
@@ -82,25 +86,36 @@ public class TicketServiceImpl implements TicketService {
             ticket.setUser(user);
             ticket.setFinalPrice(priceConfig.getPrice());
             ticket.setPurchaseDate(LocalDateTime.now());
+            ticket.setTicketCode(java.util.UUID.randomUUID().toString());
 
-            savedTickets.add(ticketRepository.save(ticket));
+            Ticket savedTicket = ticketRepository.save(ticket);
+
+            responseList.add(mapToResponseDTO(savedTicket));
         }
 
-        return savedTickets;
+        if (!responseList.isEmpty()) {
+            emailService.sendTicketsEmail(user.getEmail(), responseList);
+        }
+        return responseList;
     }
 
     @Override
-    public List<Ticket> getAllTickets() {
-        return ticketRepository.findAll();
+    public List<TicketResponseDTO> getAllTickets() {
+        return ticketRepository.findAll().stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
     }
+
     @Override
-    public List<Ticket> getTicketsByMatch(Long matchId) {
-        // Verificăm dacă meciul există (opțional, dar recomandat)
+    public List<TicketResponseDTO> getTicketsByMatch(Long matchId) {
         if (!matchRepository.existsById(matchId)) {
             throw new TicketException("Meciul cu ID-ul " + matchId + " nu există.");
         }
-        return ticketRepository.findByMatchId(matchId);
+        return ticketRepository.findByMatchId(matchId).stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
     }
+
     @Override
     public List<TicketListDTO> getTicketsByUserId(Long userId) {
         if (!userRepository.existsById(userId)) {
@@ -176,5 +191,27 @@ public class TicketServiceImpl implements TicketService {
                 .values().stream().toList();
 
         return new MatchRevenueReportDTO(matchId, match.getOpponentName(), totalRevenue, sectorDetails);
+    }
+
+    @Override
+    public TicketResponseDTO getTicketResponseById(Long id) {
+        Ticket ticket = ticketRepository.findById(id)
+                .orElseThrow(() -> new TicketException("Biletul nu există!"));
+
+        // Refolosim metoda de mapare pe care ai făcut-o deja!
+        return mapToResponseDTO(ticket);
+    }
+
+    private TicketResponseDTO mapToResponseDTO(Ticket t) {
+        return new TicketResponseDTO(
+                t.getId(),
+                t.getTicketCode(),
+                t.getMatch().getOpponentName(),
+                t.getSeat().getSector().getName(),
+                t.getSeat().getRowNumber(),
+                t.getSeat().getSeatNumber(),
+                t.getFinalPrice(),
+                t.getPurchaseDate()
+        );
     }
 }

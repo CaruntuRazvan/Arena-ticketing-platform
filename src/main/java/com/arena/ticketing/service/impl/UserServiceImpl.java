@@ -2,6 +2,7 @@ package com.arena.ticketing.service.impl;
 
 import com.arena.ticketing.dto.LoginRequestDTO;
 import com.arena.ticketing.dto.RegisterRequestDTO;
+import com.arena.ticketing.dto.UserResponseDTO;
 import com.arena.ticketing.model.User;
 import com.arena.ticketing.model.UserProfile;
 import com.arena.ticketing.repository.UserRepository;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,22 +24,21 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public User login(LoginRequestDTO request) {
-        // 1. Folosim getUsername() în loc de username()
+    public UserResponseDTO login(LoginRequestDTO request) {
+
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("Utilizator negăsit!"));
 
-        // 2. Folosim getPassword()
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new RuntimeException("Parolă incorectă!");
         }
 
-        return user;
+        return mapToDTO(user);
     }
 
     @Override
     @Transactional
-    public User registerUser(RegisterRequestDTO request) {
+    public UserResponseDTO registerUser(RegisterRequestDTO request) {
 
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new RuntimeException("Username-ul există deja!");
@@ -50,7 +51,6 @@ public class UserServiceImpl implements UserService {
         user.setRole("USER");
         user.setEnabled(true);
 
-        // 3. Mapăm datele în UserProfile
         UserProfile profile = new UserProfile();
         profile.setFirstName(request.getFirstName());
         profile.setLastName(request.getLastName());
@@ -59,21 +59,35 @@ public class UserServiceImpl implements UserService {
         user.setProfile(profile);
         profile.setUser(user);
 
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        return mapToDTO(savedUser);
     }
 
     @Override
-    public Optional<User> getUserById(Long id) {
-        return userRepository.findById(id);
+    public Optional<UserResponseDTO> getUserById(Long id) {
+        return userRepository.findById(id)
+                .map(this::mapToDTO);
     }
 
     @Override
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<UserResponseDTO> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
     }
 
     @Override
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
+    }
+    private UserResponseDTO mapToDTO(User user) {
+        return new UserResponseDTO(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getProfile() != null ? user.getProfile().getFirstName() : null,
+                user.getProfile() != null ? user.getProfile().getLastName() : null,
+                user.getRole()
+        );
     }
 }
