@@ -12,4 +12,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // Util pentru validare la înregistrare: "Email-ul există deja"
     Boolean existsByEmail(String email);
     Boolean existsByUsername(String username);
+    Optional<User> findByEmail(String email);
 }

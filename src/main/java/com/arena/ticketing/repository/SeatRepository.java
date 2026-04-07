@@ -13,4 +13,6 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     long countBySectorId(Long id);
 
     boolean existsBySectorId(Long sectorId);
+
+    void deleteBySectorId(Long sectorId);
 }

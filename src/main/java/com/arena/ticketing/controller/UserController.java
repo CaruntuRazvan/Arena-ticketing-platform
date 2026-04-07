@@ -26,6 +26,19 @@ public class UserController {
         // Returnăm user-ul creat și statusul 201 Created
         return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
     }
+
+    @PostMapping("/verify")
+    public ResponseEntity<String> verify(@RequestParam String email, @RequestParam String code) {
+        userService.verifyAccount(email, code);
+        return ResponseEntity.ok("Cont activat cu succes! Acum te poti loga.");
+    }
+
+    @PostMapping("/resend-code")
+    public ResponseEntity<String> resendCode(@RequestParam String email) {
+        userService.resendVerificationCode(email);
+        return ResponseEntity.ok("Un cod nou a fost trimis pe adresa de email.");
+    }
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDTO loginRequest) {
         try {

@@ -44,4 +44,12 @@ public class StadiumController {
         SectorDTO createdSector = stadiumService.addSector(dto);
         return new ResponseEntity<>(createdSector, HttpStatus.CREATED);
     }
+
+    @Operation(summary = "Ștergere sector",
+            description = "Șterge un sector și toate locurile asociate acestuia.")
+    @DeleteMapping("/sectors/{id}")
+    public ResponseEntity<Void> deleteSector(@PathVariable Long id) {
+        stadiumService.deleteSector(id);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -16,5 +16,6 @@ public class TicketResponseDTO {
     private int rowNumber;
     private int seatNumber;
     private Double finalPrice;
-    private LocalDateTime purchaseDate;
+    private String status;
+    private java.time.LocalDateTime createdAt;
 }

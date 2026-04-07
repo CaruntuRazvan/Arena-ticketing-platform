@@ -8,6 +8,8 @@ import java.util.Optional;
 
 public interface UserService {
     UserResponseDTO registerUser(RegisterRequestDTO request);
+    void verifyAccount(String email, String code);
+    void resendVerificationCode(String email);
     UserResponseDTO login(LoginRequestDTO loginRequest);
     Optional<UserResponseDTO> getUserById(Long id);
     List<UserResponseDTO> getAllUsers();

@@ -87,4 +87,17 @@ public class StadiumServiceImpl implements StadiumService {
         responseDTO.setTotalSeats(seatsToSave.size());
         return responseDTO;
     }
+    @Override
+    @Transactional
+    public void deleteSector(Long sectorId) {
+        Sector sector = sectorRepository.findById(sectorId)
+                .orElseThrow(() -> new TicketException("Sectorul cu ID-ul " + sectorId + " nu există!"));
+
+        // 1. Ștergem toate locurile din acest sector mai întâi
+        // (Dacă nu ai configurat CascadeType.REMOVE în entitatea Sector)
+        seatRepository.deleteBySectorId(sectorId);
+
+        // 2. Ștergem sectorul
+        sectorRepository.delete(sector);
+    }
 }

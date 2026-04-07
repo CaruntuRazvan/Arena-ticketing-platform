@@ -77,4 +77,10 @@ public class MatchController {
         matchService.updateMatchStatus(id, status);
         return ResponseEntity.ok("Statusul meciului a fost actualizat în " + status);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteMatch(@PathVariable Long id) {
+        matchService.deleteMatch(id);
+        return ResponseEntity.noContent().build(); // Trimite 204 No Content (succes)
+    }
 }

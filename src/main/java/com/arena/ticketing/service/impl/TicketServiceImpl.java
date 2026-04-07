@@ -10,6 +10,7 @@ import com.arena.ticketing.repository.*;
 import com.arena.ticketing.service.EmailService;
 import com.arena.ticketing.service.TicketService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
@@ -59,15 +60,20 @@ public class TicketServiceImpl implements TicketService {
         if (match.getStatus() == MatchStatus.FINISHED) throw new TicketException("Meciul s-a terminat!");
         if (match.getMatchDate().isBefore(LocalDateTime.now())) throw new TicketException("Meciul a trecut deja!");
 
+        // Logica pentru discount
+        boolean applyDiscount = request.isUseLoyaltyPoints() && user.getLoyaltyPoints() >= 10;
+        double discountFactor = applyDiscount ? 0.9 : 1.0;
+
         List<Ticket> savedTickets = new ArrayList<>();
         List<TicketResponseDTO> responseList = new ArrayList<>();
 
+        LocalDateTime timeout = LocalDateTime.now().minusMinutes(15);
         // 3. Procesăm fiecare loc din listă
         for (Long seatId : request.getSeatIds()) {
 
             // Verificăm dacă locul e ocupat
-            if (ticketRepository.existsByMatchIdAndSeatId(match.getId(), seatId)) {
-                throw new TicketException("Locul cu ID-ul " + seatId + " este deja ocupat!");
+            if (ticketRepository.isSeatOccupied(match.getId(), seatId, timeout)) {
+                throw new TicketException("Locul " + seatId + " este deja rezervat sau ocupat!");
             }
 
             Seat seat = seatRepository.findById(seatId)
@@ -84,19 +90,60 @@ public class TicketServiceImpl implements TicketService {
             ticket.setMatch(match);
             ticket.setSeat(seat);
             ticket.setUser(user);
-            ticket.setFinalPrice(priceConfig.getPrice());
-            ticket.setPurchaseDate(LocalDateTime.now());
-            ticket.setTicketCode(java.util.UUID.randomUUID().toString());
+            //ticket.setFinalPrice(priceConfig.getPrice());
+            ticket.setFinalPrice(priceConfig.getPrice() * discountFactor);
+            ticket.setStatus(TicketStatus.PENDING);
 
             Ticket savedTicket = ticketRepository.save(ticket);
 
             responseList.add(mapToResponseDTO(savedTicket));
         }
-
+        /*
         if (!responseList.isEmpty()) {
             emailService.sendTicketsEmail(user.getEmail(), responseList);
+        }*/
+        if (applyDiscount) {
+            user.setLoyaltyPoints(user.getLoyaltyPoints() - 10);
+            userRepository.save(user); // Salvăm noul sold de puncte (ex: de la 12 la 2)
         }
         return responseList;
+    }
+
+    @Override
+    @Transactional
+    public List<TicketResponseDTO> confirmPayment(List<Long> ticketIds) {
+        List<Ticket> tickets = ticketRepository.findAllById(ticketIds);
+        if (tickets.isEmpty()) throw new TicketException("Nu s-au găsit bilete pentru confirmare!");
+
+        LocalDateTime timeout = LocalDateTime.now().minusMinutes(15);
+        User user = tickets.get(0).getUser();
+
+        for (Ticket ticket : tickets) {
+            // Verificăm dacă rezervarea a expirat între timp
+            if (ticket.getStatus() == TicketStatus.PENDING && ticket.getCreatedAt().isBefore(timeout)) {
+                ticket.setStatus(TicketStatus.CANCELLED);
+                ticketRepository.save(ticket);
+                throw new TicketException("Rezervarea pentru biletul " + ticket.getId() + " a expirat și nu mai poate fi plătită!");
+            }
+
+            // Dacă e OK, îl confirmăm
+            ticket.setStatus(TicketStatus.CONFIRMED);
+            ticket.setPurchaseDate(LocalDateTime.now()); // Acum punem data plății
+            ticketRepository.save(ticket);
+        }
+
+        int wonPoints = tickets.size();
+        user.setLoyaltyPoints(user.getLoyaltyPoints() + wonPoints);
+        userRepository.save(user);
+
+        // ACUM trimitem emailul cu biletele oficiale
+        List<TicketResponseDTO> confirmedDTOs = tickets.stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+
+        emailService.sendTicketsEmail(user.getEmail(), confirmedDTOs);
+
+        return confirmedDTOs;
     }
 
     @Override
@@ -202,6 +249,15 @@ public class TicketServiceImpl implements TicketService {
         return mapToResponseDTO(ticket);
     }
 
+    @Scheduled(cron = "0 0 * * * *")
+    @Transactional
+    public void performDatabaseHousekeeping() {
+        LocalDateTime threshold = LocalDateTime.now().minusHours(24);
+
+        ticketRepository.deleteExpiredOrCancelledTickets(threshold);
+        System.out.println("Job Curățenie: Biletele anulate sau expirate de peste 24h au fost șterse.");
+    }
+
     private TicketResponseDTO mapToResponseDTO(Ticket t) {
         return new TicketResponseDTO(
                 t.getId(),
@@ -211,7 +267,8 @@ public class TicketServiceImpl implements TicketService {
                 t.getSeat().getRowNumber(),
                 t.getSeat().getSeatNumber(),
                 t.getFinalPrice(),
-                t.getPurchaseDate()
+                t.getStatus().name(),
+                t.getCreatedAt()
         );
     }
 }

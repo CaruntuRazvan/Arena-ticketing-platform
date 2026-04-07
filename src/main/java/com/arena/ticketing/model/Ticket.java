@@ -7,9 +7,7 @@ import lombok.Setter;
 import java.util.UUID;
 
 @Entity
-@Table(name = "tickets", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"match_id", "seat_id"})
-})
+@Table(name = "tickets") // Am scos UniqueConstraint pentru a permite re-rezervarea locurilor expirate
 @Getter @Setter @NoArgsConstructor
 public class Ticket {
 
@@ -17,9 +15,14 @@ public class Ticket {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String ticketCode = UUID.randomUUID().toString();
+    private String ticketCode; // Îl vom genera în Service sau @PrePersist
 
-    private java.time.LocalDateTime purchaseDate;
+    private java.time.LocalDateTime purchaseDate; // Data când devine CONFIRMED
+
+    private java.time.LocalDateTime createdAt; // Data când a fost rezervat (pentru cele 15 min)
+
+    @Enumerated(EnumType.STRING)
+    private TicketStatus status = TicketStatus.PENDING;
 
     private boolean used = false;
 
@@ -36,4 +39,16 @@ public class Ticket {
     private User user;
 
     private Double finalPrice;
+
+    // Se execută automat la prima salvare în DB
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = java.time.LocalDateTime.now();
+        if (this.ticketCode == null) {
+            this.ticketCode = java.util.UUID.randomUUID().toString();
+        }
+        if (this.status == null) {
+            this.status = TicketStatus.PENDING;
+        }
+    }
 }

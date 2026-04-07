@@ -21,4 +21,5 @@ public class TicketRequestDTO {
 
     @NotNull(message = "ID-ul utilizatorului este obligatoriu pentru achiziție")
     private Long userId;
+    private boolean useLoyaltyPoints;
 }

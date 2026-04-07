@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # --- SERVICIUL 1: Baza de Date ---
+  db:
+    image: postgres:15-alpine
+    container_name: ticketing-db
+    environment:
+      POSTGRES_DB: arena-ticketing-dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Costica80
+    ports:
+      - "5433:5432" # Accesăm DB din exterior pe portul 5433 ca să nu se bată cu Postgres-ul tău local
+
+  # --- SERVICIUL 2: Aplicația Ta ---
+  app:
+    build: .
+    container_name: ticketing-app
+    ports:
+      - "8081:8081"
+    depends_on:
+      - db
+    environment:
+      # Aici suprascriem setările din application.properties
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/arena-ticketing-dev
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: Costica80
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect

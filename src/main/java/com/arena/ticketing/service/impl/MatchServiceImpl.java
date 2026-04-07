@@ -186,6 +186,15 @@ public class MatchServiceImpl implements MatchService {
         }
     }
 
+    @Override
+    @Transactional
+    public void deleteMatch(Long id) {
+        if (!matchRepository.existsById(id)) {
+            throw new RuntimeException("Meciul cu ID-ul " + id + " nu există!");
+        }
+        matchRepository.deleteById(id);
+    }
+
     private MatchDTO mapToDTO(Match match) {
         MatchDTO dto = new MatchDTO();
         dto.setId(match.getId());

@@ -11,4 +11,5 @@ public interface StadiumService {
     StadiumDTO createStadium(StadiumDTO stadiumDTO);
     List<StadiumDTO> getAllStadiums();
     SectorDTO addSector(SectorRequestDTO dto);
+    void deleteSector(Long sectorId);
 }

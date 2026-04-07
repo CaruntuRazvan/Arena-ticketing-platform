@@ -18,4 +18,5 @@ public interface MatchService {
 
     List<SectorAvailabilityDTO> getSectorsAvailabilityForMatch(Long matchId);
     void updateMatchStatus(Long matchId, MatchStatus newStatus);
+    void deleteMatch(Long id);
 }

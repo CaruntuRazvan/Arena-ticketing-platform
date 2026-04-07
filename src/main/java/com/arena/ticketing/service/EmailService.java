@@ -1,5 +1,6 @@
 package com.arena.ticketing.service;
 
+import org.springframework.mail.SimpleMailMessage;
 import com.arena.ticketing.dto.TicketResponseDTO;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,14 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
     private final PdfGeneratorService pdfGeneratorService;
+
+    public void sendSimpleMessage(String to, String subject, String text) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(to);
+        message.setSubject(subject);
+        message.setText(text);
+        mailSender.send(message);
+    }
 
     public void sendTicketsEmail(String toEmail, List<TicketResponseDTO> tickets) {
         try {

@@ -20,6 +20,6 @@ public interface TicketService {
     Double getTotalRevenueByMatch(Long matchId);
     TicketResponseDTO getTicketResponseById(Long id);
     void validateTicket(String ticketCode);
-
+    List<TicketResponseDTO> confirmPayment(List<Long> ticketIds);
     MatchRevenueReportDTO getDetailedRevenueReport(Long matchId);
 }

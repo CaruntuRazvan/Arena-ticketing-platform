@@ -27,6 +27,7 @@ public class User {
     private String role; // Ex: "USER" sau "ADMIN"
 
     private boolean enabled = true;
+    private Integer loyaltyPoints = 0;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private UserProfile profile;

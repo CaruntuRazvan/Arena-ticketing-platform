@@ -2,6 +2,7 @@ package com.arena.ticketing.service;
 
 import com.arena.ticketing.dto.TicketResponseDTO;
 import org.springframework.stereotype.Service;
+import com.arena.ticketing.util.QrCodeGenerator;
 
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.PdfWriter;
@@ -21,7 +22,7 @@ public class PdfGeneratorService {
 
             Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
             Font infoFont = FontFactory.getFont(FontFactory.HELVETICA, 12);
-
+            Font codeFont = FontFactory.getFont(FontFactory.COURIER, 8);
             Paragraph title = new Paragraph("ARENA TICKETING", titleFont);
             title.setAlignment(Element.ALIGN_CENTER);
             document.add(title);
@@ -32,10 +33,20 @@ public class PdfGeneratorService {
             document.add(new Paragraph("SECTOR: " + ticket.getSectorName(), infoFont));
             document.add(new Paragraph("RAND: " + ticket.getRowNumber() + " | LOC: " + ticket.getSeatNumber(), infoFont));
             document.add(new Paragraph("PRET: " + ticket.getFinalPrice() + " RON", infoFont));
+            document.add(new Paragraph("STATUS: " + ticket.getStatus(), infoFont));
 
             document.add(new Paragraph("\n"));
-            document.add(new Paragraph("COD BILET:", infoFont));
-            document.add(new Paragraph(ticket.getTicketCode(), FontFactory.getFont(FontFactory.COURIER, 10)));
+
+            byte[] qrBytes = QrCodeGenerator.generateQrCodeImage(ticket.getTicketCode());
+            Image qrImage = Image.getInstance(qrBytes);
+            qrImage.setAlignment(Element.ALIGN_CENTER);
+            qrImage.scaleToFit(120, 120); // Să arate bine pe A6
+            document.add(qrImage);
+
+            // Codul biletului text sub imagine
+            Paragraph footer = new Paragraph(ticket.getTicketCode(), codeFont);
+            footer.setAlignment(Element.ALIGN_CENTER);
+            document.add(footer);
 
             document.close();
         } catch (Exception e) {

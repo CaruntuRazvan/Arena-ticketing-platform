@@ -82,5 +82,11 @@ public class TicketController {
 
         return new ResponseEntity<>(pdfContent, headers, HttpStatus.OK);
     }
-
+    @PostMapping("/confirm")
+    @Operation(summary = "Confirmare plată bilete",
+            description = "Confirmă plata pentru o listă de ID-uri de bilete rezervate (PENDING). Dacă au trecut mai mult de 15 minute, confirmarea va eșua.")
+    public ResponseEntity<List<TicketResponseDTO>> confirmTickets(@RequestBody List<Long> ticketIds) {
+        List<TicketResponseDTO> confirmedTickets = ticketService.confirmPayment(ticketIds);
+        return ResponseEntity.ok(confirmedTickets);
+    }
 }
