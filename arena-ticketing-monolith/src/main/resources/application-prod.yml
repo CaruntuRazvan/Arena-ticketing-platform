@@ -1,0 +1,7 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL} # Se va lua dintr-o variabilă de mediu pe server (siguranță maximă)
+  jpa:
+    hibernate:
+      ddl-auto: validate # NU lăsăm Hibernate să modifice baza de date în producție!
+    show-sql: false
