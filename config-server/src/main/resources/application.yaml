@@ -1,0 +1,20 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: config-server
+  profiles:
+    active: native  # Folosim modul "native" pentru a citi de pe disc local
+  cloud:
+    config:
+      server:
+        native:
+          # AICI pui calea către folderul creat la Pasul 3
+          search-locations: file:///D:/Facultate/master/an1/sem2/AWBD/Arena-Ticketing-System/config-repo
+
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
