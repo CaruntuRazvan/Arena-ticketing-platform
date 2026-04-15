@@ -1,0 +1,20 @@
+package com.arena.auth.service;
+
+
+import com.arena.auth.dto.RegisterRequestDTO;
+import com.arena.auth.dto.LoginRequestDTO;
+import com.arena.auth.dto.UserResponseDTO;
+import com.arena.auth.dto.LoginResponseDTO;
+import java.util.List;
+import java.util.Optional;
+
+public interface UserService {
+    UserResponseDTO registerUser(RegisterRequestDTO request);
+    void verifyAccount(String email, String code);
+    void resendVerificationCode(String email);
+    //UserResponseDTO login(LoginRequestDTO loginRequest);
+    LoginResponseDTO login(LoginRequestDTO request);
+    Optional<UserResponseDTO> getUserById(Long id);
+    List<UserResponseDTO> getAllUsers();
+    void deleteUser(Long id);
+}
