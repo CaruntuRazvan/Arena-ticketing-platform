@@ -1,0 +1,37 @@
+server:
+  port: 8080
+
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cloud:
+    gateway:
+      routes:
+        # RUTA 1: LOGIN & REGISTER (Sunt publice, nu cerem token)
+        - id: auth-public
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/api/users/login, /api/users/register, /api/users/verify, /api/users/resend-code
+
+        - id: auth-service-protected
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - AuthenticationFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                key-resolver: "#{@userKeyResolver}"
+
+app:
+  jwt:
+    secret: ${ARENA_JWT_SECRET}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
