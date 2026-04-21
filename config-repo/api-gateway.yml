@@ -27,6 +27,28 @@ spring:
                 redis-rate-limiter.burstCapacity: 10
                 key-resolver: "#{@userKeyResolver}"
 
+        # RUTA 2: CATALOG (Stadioane, Meciuri) - Partea publică e liberă, partea de admin e protejată
+        - id: catalog-public
+          uri: lb://CATALOG-SERVICE
+          predicates:
+            - Path=/api/catalog/stadiums/**, /api/catalog/matches/**, /api/catalog/seats/**
+            - Method=GET
+
+
+        - id: catalog-admin
+          uri: lb://CATALOG-SERVICE
+          predicates:
+            - Path=/api/catalog/stadiums/**, /api/catalog/matches/**
+            - Method=POST, PATCH, DELETE
+          filters:
+            - AuthenticationFilter # Doar adminii (sau userii logați) pot crea stadioane/meciuri
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.burstCapacity: 5
+                key-resolver: "#{@userKeyResolver}"
+
+
 app:
   jwt:
     secret: ${ARENA_JWT_SECRET}
