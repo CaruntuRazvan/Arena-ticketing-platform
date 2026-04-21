@@ -11,7 +11,7 @@ spring:
       server:
         native:
           # AICI pui calea către folderul creat la Pasul 3
-          search-locations: file:///D:/Facultate/master/an1/sem2/AWBD/Arena-Ticketing-System/config-repo
+          search-locations: file:///D:/Facultate/master/an1/sem2/AWBD/Arena-Ticketing-System/Arena-ticketing-platform/config-repo
 
 
 eureka:
