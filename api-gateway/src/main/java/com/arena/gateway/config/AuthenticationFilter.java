@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import io.jsonwebtoken.Claims;
 
 @Component
 @Lazy
@@ -30,7 +31,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
         return (exchange, chain) -> {
             // 1. Verificăm dacă există header-ul Authorization (Token-ul)
             if (!exchange.getRequest().getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
-                return stopWithUnauthorized(exchange);
+                return stopWithStatus(exchange, HttpStatus.UNAUTHORIZED);
             }
 
             String authHeader = exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION).get(0);
@@ -40,23 +41,33 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                     ? authHeader.substring(7) : authHeader;
 
             try {
-                // 3. Validăm semnătura token-ului
-                Jwts.parserBuilder()
+                Claims claims = Jwts.parserBuilder()
                         .setSigningKey(Keys.hmacShaKeyFor(secretKey.getBytes()))
                         .build()
-                        .parseClaimsJws(token);
+                        .parseClaimsJws(token)
+                        .getBody();
 
-                // Dacă e ok, trecem la pasul următor
+                String path = exchange.getRequest().getPath().toString();
+                String method = exchange.getRequest().getMethod().name();
+
+                if (path.contains("/admin") || !method.equals("GET")) {
+                    String role = claims.get("role", String.class); // Presupunem că în Auth Service pui rolul în claim-ul "role"
+
+                    if (role == null || !role.equalsIgnoreCase("ADMIN")) {
+                        return stopWithStatus(exchange, HttpStatus.FORBIDDEN); // 403 dacă nu e admin
+                    }
+                }
+
                 return chain.filter(exchange);
             } catch (Exception e) {
-                // Dacă token-ul e expirat sau greșit, îi dăm afară (401)
-                return stopWithUnauthorized(exchange);
+
+                return stopWithStatus(exchange, HttpStatus.UNAUTHORIZED);
             }
         };
     }
 
-    private Mono<Void> stopWithUnauthorized(ServerWebExchange exchange) {
-        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+    private Mono<Void> stopWithStatus(ServerWebExchange exchange, HttpStatus status) {
+        exchange.getResponse().setStatusCode(status);
         return exchange.getResponse().setComplete();
     }
 }
