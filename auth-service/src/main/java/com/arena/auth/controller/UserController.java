@@ -55,4 +55,10 @@ public class UserController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @PutMapping("/{id}/loyalty-points")
+    public ResponseEntity<Void> updatePoints(@PathVariable Long id, @RequestParam int points) {
+        userService.updateLoyaltyPoints(id, points);
+        return ResponseEntity.ok().build();
+    }
 }

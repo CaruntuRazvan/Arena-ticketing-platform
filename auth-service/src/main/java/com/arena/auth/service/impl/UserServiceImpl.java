@@ -169,6 +169,16 @@ public class UserServiceImpl implements UserService {
         userRepository.deleteById(id);
     }
 
+    @Override
+    @Transactional
+    public void updateLoyaltyPoints(Long userId, int points) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AuthException("Utilizator negăsit!"));
+
+        user.setLoyaltyPoints(user.getLoyaltyPoints() + points);
+        userRepository.save(user);
+    }
+
     private UserResponseDTO mapToDTO(User user) {
         return new UserResponseDTO(
                 user.getId(),
@@ -176,7 +186,8 @@ public class UserServiceImpl implements UserService {
                 user.getEmail(),
                 user.getProfile() != null ? user.getProfile().getFirstName() : null,
                 user.getProfile() != null ? user.getProfile().getLastName() : null,
-                user.getRole()
+                user.getRole(),
+                user.getLoyaltyPoints() // <--- TRIMITE PUNCTELE AICI
         );
     }
 }

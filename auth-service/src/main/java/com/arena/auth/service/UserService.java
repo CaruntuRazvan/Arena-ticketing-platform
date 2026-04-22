@@ -17,4 +17,5 @@ public interface UserService {
     Optional<UserResponseDTO> getUserById(Long id);
     List<UserResponseDTO> getAllUsers();
     void deleteUser(Long id);
+    void updateLoyaltyPoints(Long userId, int points);
 }
