@@ -61,4 +61,14 @@ public class MatchController {
         matchService.deleteMatch(id);
         return ResponseEntity.noContent().build(); // Trimite 204 No Content (succes)
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<MatchDTO> getMatchById(@PathVariable Long id) {
+        return ResponseEntity.ok(matchService.getMatchById(id));
+    }
+
+    @GetMapping("/{matchId}/prices/{sectorId}")
+    public ResponseEntity<Double> getPrice(@PathVariable Long matchId, @PathVariable Long sectorId) {
+        return ResponseEntity.ok(matchService.getSectorPrice(matchId, sectorId));
+    }
 }

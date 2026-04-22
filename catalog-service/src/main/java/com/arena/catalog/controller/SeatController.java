@@ -21,4 +21,8 @@ public class SeatController {
         return ResponseEntity.ok(seatService.getSeatsBySector(sectorId));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<SeatDTO> getSeatById(@PathVariable Long id) {
+        return ResponseEntity.ok(seatService.getSeatById(id));
+    }
 }

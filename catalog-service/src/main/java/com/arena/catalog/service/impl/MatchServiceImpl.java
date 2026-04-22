@@ -141,6 +141,23 @@ public class MatchServiceImpl implements MatchService {
         matchRepository.deleteById(id);
     }
 
+    @Override
+    public MatchDTO getMatchById(Long id) {
+        Match match = matchRepository.findById(id)
+                .orElseThrow(() -> new CatalogException("Meciul cu ID-ul " + id + " nu a fost găsit"));
+
+        // Folosim metoda mapToDTO pe care o ai deja definită mai jos pentru consistență
+        return mapToDTO(match);
+    }
+
+    @Override
+    public Double getSectorPrice(Long matchId, Long sectorId) {
+        // Folosim repository-ul tău: matchSectorPriceRepository
+        return matchSectorPriceRepository.findByMatchIdAndSectorId(matchId, sectorId)
+                .map(MatchSectorPrice::getPrice)
+                .orElseThrow(() -> new CatalogException("Prețul nu este configurat pentru acest sector!"));
+    }
+
     private MatchDTO mapToDTO(Match match) {
         MatchDTO dto = new MatchDTO();
         dto.setId(match.getId());

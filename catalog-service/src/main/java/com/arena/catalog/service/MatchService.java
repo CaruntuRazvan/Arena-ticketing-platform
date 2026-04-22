@@ -16,4 +16,6 @@ public interface MatchService {
     Double getPriceForSector(Long matchId, Long sectorId);
     void updateMatchStatus(Long matchId, MatchStatus newStatus);
     void deleteMatch(Long id);
+    MatchDTO getMatchById(Long id);
+    Double getSectorPrice(Long matchId, Long sectorId);
 }
