@@ -12,10 +12,11 @@ public class TicketResponseDTO {
     private Long id;
     private String ticketCode;
     private String opponentName;
+    private LocalDateTime matchDate;
     private String sectorName;
     private int rowNumber;
     private int seatNumber;
     private Double finalPrice;
     private String status;
-    private java.time.LocalDateTime createdAt;
+    private LocalDateTime createdAt;
 }

@@ -2,6 +2,7 @@ package com.arena.ticketing.service.impl;
 
 import com.arena.ticketing.client.AuthClient;
 import com.arena.ticketing.client.CatalogClient;
+import com.arena.ticketing.client.NotificationClient;
 import com.arena.ticketing.dto.*;
 import com.arena.ticketing.dto.external.*;
 import com.arena.ticketing.exception.TicketException;
@@ -13,7 +14,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
-
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +30,7 @@ public class TicketServiceImpl implements TicketService {
     // Înlocuim repository-urile externe cu clienți Feign
     private final CatalogClient catalogClient;
     private final AuthClient authClient;
+    private final NotificationClient notificationClient;
 
     @Override
     @Transactional(isolation = Isolation.SERIALIZABLE)
@@ -36,6 +39,8 @@ public class TicketServiceImpl implements TicketService {
         if (request.getSeatIds() == null || request.getSeatIds().isEmpty()) {
             throw new TicketException("Trebuie sa selectati cel putin un loc!");
         }
+
+        validateLimits(request); // helper function
 
         // 2. Apelăm Auth Service să vedem dacă userul există și ce puncte are
         UserDTO user = authClient.getUserById(request.getUserId());
@@ -86,31 +91,45 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     @Transactional
+    @CircuitBreaker(name = "notificationCB", fallbackMethod = "fallbackForNotification")
+    @Retry(name = "notificationRetry")
     public List<TicketResponseDTO> confirmPayment(List<Long> ticketIds) {
         List<Ticket> tickets = ticketRepository.findAllById(ticketIds);
-        if (tickets.isEmpty()) throw new TicketException("Nu s-au găsit bilete!");
 
-        Long userId = tickets.get(0).getUserId();
+        if (tickets.size() != ticketIds.size()) {
+            throw new TicketException("Unul sau mai multe bilete nu au fost găsite!");
+        }
 
         for (Ticket ticket : tickets) {
             if (ticket.getStatus() == TicketStatus.PENDING &&
                     ticket.getCreatedAt().isBefore(LocalDateTime.now().minusMinutes(15))) {
+
                 ticket.setStatus(TicketStatus.CANCELLED);
                 ticketRepository.save(ticket);
-                throw new TicketException("Rezervarea a expirat!");
+                throw new TicketException("Rezervarea pentru biletul " + ticket.getId() + " a expirat!");
             }
+        }
+
+        Long userId = tickets.get(0).getUserId();
+        UserDTO user = authClient.getUserById(userId);
+        List<TicketResponseDTO> confirmedDTOs = new ArrayList<>();
+
+        for (Ticket ticket : tickets) {
 
             ticket.setStatus(TicketStatus.CONFIRMED);
             ticket.setPurchaseDate(LocalDateTime.now());
+            ticket.setMailSent(true);
             ticketRepository.save(ticket);
+
+            MatchDTO match = catalogClient.getMatchById(ticket.getMatchId());
+            TicketResponseDTO dto = mapToResponseDTO(ticket, match, null);
+            confirmedDTOs.add(dto);
+
+            notificationClient.sendTicketNotification(dto, user.getEmail());
         }
 
-        // Adăugăm puncte de loialitate prin Auth Service
         authClient.updatePoints(userId, tickets.size());
-
-        return tickets.stream()
-                .map(t -> mapToResponseDTO(t, catalogClient.getMatchById(t.getMatchId()), null))
-                .collect(Collectors.toList());
+        return confirmedDTOs;
     }
 
     @Override
@@ -142,32 +161,66 @@ public class TicketServiceImpl implements TicketService {
                     );
                 }).collect(Collectors.toList());
     }
-    /*
+
     @Override
     @Transactional
     public void validateTicket(String ticketCode) {
-        Ticket ticket = ticketRepository.findByTicketCode(ticketCode)
-                .orElseThrow(() -> new TicketException("Cod invalid!"));
 
-        if (ticket.isUsed()) throw new TicketException("Bilet deja scanat!");
+        Ticket ticket = ticketRepository.findByTicketCode(ticketCode)
+                .orElseThrow(() -> new TicketException("Cod invalid! Biletul nu există în sistem."));
+
+        if (ticket.isUsed()) {
+            throw new TicketException("Acces refuzat! Acest bilet a fost deja scanat.");
+        }
+
+        if (ticket.getStatus() != TicketStatus.CONFIRMED) {
+            throw new TicketException("Acces refuzat! Plata biletului nu a fost confirmată.");
+        }
 
         MatchDTO match = catalogClient.getMatchById(ticket.getMatchId());
+
+
         if (match.getMatchDate().isBefore(LocalDateTime.now().minusHours(3))) {
-            throw new TicketException("Meciul a expirat!");
+            throw new TicketException("Acces refuzat! Acest bilet este pentru un eveniment care a trecut.");
         }
 
         ticket.setUsed(true);
         ticketRepository.save(ticket);
     }
-    */
+
     @Scheduled(cron = "0 0 * * * *")
     @Transactional
     public void performDatabaseHousekeeping() {
         ticketRepository.deleteExpiredOrCancelledTickets(LocalDateTime.now().minusHours(24));
     }
 
-    // helper
+    // 1. FALLBACK REPARAT (Semnătura coincide cu metoda originală)
+    public List<TicketResponseDTO> fallbackForNotification(List<Long> ticketIds, Throwable t) {
+        if (t instanceof TicketException) {
+            throw (TicketException) t;
+        }
 
+        System.err.println(">>> FALLBACK ACTIVAT: Notification Service este indisponibil!");
+
+        // În caz de fallback, returnăm biletele din DB marcate cu mailSent = false
+        List<Ticket> tickets = ticketRepository.findAllById(ticketIds);
+        List<TicketResponseDTO> response = new ArrayList<>();
+
+        for (Ticket ticket : tickets) {
+            ticket.setStatus(TicketStatus.CONFIRMED); //confirmam desi nu s a trimis mail
+            ticket.setPurchaseDate(LocalDateTime.now());
+            ticket.setMailSent(false); //false in caz de eroare
+            ticketRepository.save(ticket);
+
+            MatchDTO match = catalogClient.getMatchById(ticket.getMatchId());
+            response.add(mapToResponseDTO(ticket, match, null));
+        }
+
+        System.out.println("Biletele au fost confirmate, dar mail-ul a eșuat. mailSent = false în DB.");
+        return response;
+    }
+
+    // helper
     private void validateLimits(TicketRequestDTO request) {
         int requestedCount = request.getSeatIds().size();
         if (requestedCount > 5) throw new TicketException("Maxim 5 bilete per tranzactie!");
@@ -178,10 +231,18 @@ public class TicketServiceImpl implements TicketService {
 
     private TicketResponseDTO mapToResponseDTO(Ticket t, MatchDTO match, SeatDTO seat) {
         if (seat == null) seat = catalogClient.getSeatById(t.getSeatId());
+
         return new TicketResponseDTO(
-                t.getId(), t.getTicketCode(), match.getOpponentName(),
-                "Sector " + seat.getSectorId(), seat.getRowNumber(), seat.getSeatNumber(),
-                t.getFinalPrice(), t.getStatus().name(), t.getCreatedAt()
+                t.getId(),
+                t.getTicketCode(),
+                match.getOpponentName(),
+                match.getMatchDate(),
+                "Sector " + seat.getSectorId(),
+                seat.getRowNumber(),
+                seat.getSeatNumber(),
+                t.getFinalPrice(),
+                t.getStatus().name(),
+                t.getCreatedAt()
         );
     }
 }

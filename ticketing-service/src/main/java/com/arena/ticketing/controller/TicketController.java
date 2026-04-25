@@ -40,13 +40,13 @@ public class TicketController {
     public ResponseEntity<List<TicketResponseDTO>> getAllTickets() {
         return ResponseEntity.ok(ticketService.getAllTickets());
     }
-    /*
+
     @PatchMapping("/validate/{ticketCode}")
     public ResponseEntity<String> validateTicket(@PathVariable String ticketCode) {
         ticketService.validateTicket(ticketCode);
         return ResponseEntity.ok("Acces permis! Biletul " + ticketCode + " a fost validat.");
     }
-    */
+
     /* NOTĂ: Metoda de download PDF și Revenue Report sunt momentan comentate
        până când implementăm PDF Service și logica de agregare cross-service.
     */

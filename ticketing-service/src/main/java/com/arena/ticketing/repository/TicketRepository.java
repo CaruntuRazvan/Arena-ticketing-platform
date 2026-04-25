@@ -1,6 +1,7 @@
 package com.arena.ticketing.repository;
 
 import com.arena.ticketing.model.Ticket;
+import com.arena.ticketing.model.TicketStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -21,17 +22,12 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     List<Ticket> findByMatchId(Long matchId);
 
-    // MODIFICAT: Nu mai avem t.match.id, ci direct t.matchId
-    // ATENȚIE: Nu mai putem afla sectorul prin t.seat.sector.id (Ticketing nu știe sectoarele)
-    // Vom filtra doar după matchId și vom lăsa logica de sector în Service
     @Query("SELECT t.seatId FROM Ticket t WHERE t.matchId = :matchId")
+
     List<Long> findOccupiedSeatIdsByMatch(@Param("matchId") Long matchId);
 
     long countByMatchId(Long matchId);
 
-    // MODIFICAT: Ticketing nu mai știe ce sector are un seatId direct în DB
-    // Dacă ai nevoie de numărătoare pe sector, o faci în Service sau adaugi sectorId în entitatea Ticket
-    // Momentan o lăsăm comentată sau o scoatem
     // long countByMatchIdAndSeatSectorId(Long matchId, Long sectorId);
 
     Optional<Ticket> findByTicketCode(String ticketCode);
@@ -46,6 +42,8 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
             @Param("seatId") Long seatId,
             @Param("timeout") LocalDateTime timeout
     );
+
+    List<Ticket> findByStatusAndMailSentFalse(TicketStatus status);
 
     @Modifying
     @Transactional

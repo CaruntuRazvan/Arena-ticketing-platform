@@ -11,4 +11,5 @@ public interface TicketService {
     List<TicketResponseDTO> getAllTickets();
     List<TicketResponseDTO> getTicketsByMatch(Long matchId);
     List<TicketListDTO> getTicketsByUserId(Long userId);
+    void validateTicket(String ticketCode);
 }

@@ -18,3 +18,19 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      notificationCB:
+        slidingWindowSize: 10 # Se uită la ultimele 10 apeluri
+        failureRateThreshold: 50 # Dacă 5 din 10 eșuează, "sare" siguranța (Open)
+        waitDurationInOpenState: 10s # Cât timp stă blocat înainte să încerce iar
+        permittedNumberOfCallsInHalfOpenState: 3
+        ignoreExceptions:
+          - com.arena.ticketing.exception.TicketException
+  retry:
+    instances:
+      notificationRetry:
+        maxAttempts: 3 # Încearcă de 3 ori înainte să renunțe
+        waitDuration: 2s # Așteaptă 2 secunde între încercări

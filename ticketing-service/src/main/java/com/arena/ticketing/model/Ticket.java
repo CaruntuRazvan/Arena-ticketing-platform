@@ -33,6 +33,7 @@ public class Ticket {
 
     private Double finalPrice;
 
+    private Boolean mailSent = false;
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
