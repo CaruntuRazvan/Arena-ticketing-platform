@@ -47,11 +47,29 @@ spring:
                 redis-rate-limiter.burstCapacity: 5
                 key-resolver: "#{@userKeyResolver}"
 
-        # Ruta 3 Tickets
-        - id: ticketing-service
+
+        # RUTA 3: TICKETING - Partea pentru USER (Buy, Confirm, My Tickets)
+        - id: ticketing-user
           uri: lb://TICKETING-SERVICE
           predicates:
-            - Path=/api/ticketing/**
+            - Path=/api/ticketing/buy, /api/ticketing/confirm, /api/ticketing/user/**
+          filters:
+            - AuthenticationFilter
+
+        # RUTA 4: TICKETING - Partea pentru ADMIN (Validate, Get All, Match Stats)
+        - id: ticketing-admin
+          uri: lb://TICKETING-SERVICE
+          predicates:
+            - Path=/api/ticketing/validate/**, /api/ticketing/match/**, /api/ticketing
+          filters:
+            - AuthenticationFilter
+            # Aici am putea adăuga un filtru de RoleCheck dacă filtrul tău de auth suportă asta
+
+        - id: notification-service
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/notifications/**
+
 
 app:
   jwt:
