@@ -64,4 +64,18 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    @ExceptionHandler(feign.FeignException.class)
+    public ResponseEntity<Object> handleFeignException(feign.FeignException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+
+        int status = ex.status() <= 0 ? HttpStatus.SERVICE_UNAVAILABLE.value() : ex.status();
+
+        body.put("status", status);
+        body.put("error", "Communication Error");
+        body.put("message", "Serviciul de notificări este momentan indisponibil. Înregistrarea a fost anulată.");
+
+        return new ResponseEntity<>(body, HttpStatus.valueOf(status));
+    }
 }

@@ -52,7 +52,7 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
     }
 
-    // 2. Prinde orice altă eroare neprevăzută (500) ca să nu crape urât în Postman
+    // 2. Prinde orice altă eroare neprevăzută (500)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleGeneralException(Exception ex) {
         Map<String, Object> body = new LinkedHashMap<>();
@@ -61,5 +61,20 @@ public class GlobalExceptionHandler {
         body.put("message", "A intervenit o eroare neprevăzută la server.");
 
         return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(feign.FeignException.class)
+    public ResponseEntity<Object> handleFeignException(feign.FeignException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+
+        HttpStatus status = HttpStatus.resolve(ex.status());
+        if (status == null) status = HttpStatus.INTERNAL_SERVER_ERROR;
+
+        body.put("status", status.value());
+        body.put("error", "External Service Error");
+
+        body.put("message", "Eroare la comunicarea cu Catalog/Auth: " + ex.getMessage());
+        return new ResponseEntity<>(body, status);
     }
 }
