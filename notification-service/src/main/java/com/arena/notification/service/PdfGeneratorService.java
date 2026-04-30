@@ -2,6 +2,7 @@ package com.arena.notification.service;
 
 
 import com.arena.notification.dto.external.TicketResponseDTO;
+import com.arena.notification.exception.NotificationException;
 import com.arena.notification.util.QrCodeGenerator;
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.PdfWriter;
@@ -56,7 +57,7 @@ public class PdfGeneratorService {
 
             document.close();
         } catch (Exception e) {
-            throw new RuntimeException("Eroare la generarea PDF-ului din DTO", e);
+            throw new NotificationException("Eroare la generarea PDF-ului din DTO", e);
         }
         return out.toByteArray();
     }
