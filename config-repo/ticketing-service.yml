@@ -2,6 +2,15 @@ server:
   port: 8083
 
 spring:
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 3
   datasource:
     url: jdbc:postgresql://localhost:5432/arena_ticketing_db
     username: ${DB_USER}
@@ -26,6 +35,14 @@ resilience4j:
         slidingWindowSize: 10 # Se uită la ultimele 10 apeluri
         failureRateThreshold: 50 # Dacă 5 din 10 eșuează, "sare" siguranța (Open)
         waitDurationInOpenState: 10s # Cât timp stă blocat înainte să încerce iar
+        permittedNumberOfCallsInHalfOpenState: 3
+        ignoreExceptions:
+          - com.arena.ticketing.exception.TicketException
+
+      catalogCB:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s # Stă închis 10 secunde dacă Catalog e picat
         permittedNumberOfCallsInHalfOpenState: 3
         ignoreExceptions:
           - com.arena.ticketing.exception.TicketException

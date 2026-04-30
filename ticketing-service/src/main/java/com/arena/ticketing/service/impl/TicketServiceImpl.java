@@ -9,6 +9,7 @@ import com.arena.ticketing.exception.TicketException;
 import com.arena.ticketing.model.*;
 import com.arena.ticketing.repository.TicketRepository;
 import com.arena.ticketing.service.TicketService;
+import com.arena.ticketing.service.impl.CatalogIntegrationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class TicketServiceImpl implements TicketService {
     private final CatalogClient catalogClient;
     private final AuthClient authClient;
     private final NotificationClient notificationClient;
+    private final CatalogIntegrationService catalogService;
 
     @Override
     @Transactional(isolation = Isolation.SERIALIZABLE)
@@ -46,8 +48,8 @@ public class TicketServiceImpl implements TicketService {
         UserDTO user = authClient.getUserById(request.getUserId());
 
         // 3. Apelăm Catalog Service pentru datele meciului
-        MatchDTO match = catalogClient.getMatchById(request.getMatchId());
-
+        //MatchDTO match = catalogClient.getMatchById(request.getMatchId());
+        MatchDTO match = catalogService.getMatchSecurely(request.getMatchId());
         // Verificări status meci (folosind datele primite prin Feign)
         if (MatchStatus.CANCELLED.equals(match.getStatus())) {
             throw new TicketException("Meciul a fost anulat!");
@@ -68,8 +70,10 @@ public class TicketServiceImpl implements TicketService {
             }
 
             // Luăm detaliile scaunului și prețul din Catalog
-            SeatDTO seat = catalogClient.getSeatById(seatId);
-            Double basePrice = catalogClient.getPrice(match.getId(), seat.getSectorId());
+            //SeatDTO seat = catalogClient.getSeatById(seatId);
+            //Double basePrice = catalogClient.getPrice(match.getId(), seat.getSectorId());
+            SeatDTO seat = catalogService.getSeatSecurely(seatId);
+            Double basePrice = catalogService.getPriceSecurely(match.getId(), seat.getSectorId());
 
             Ticket ticket = new Ticket();
             ticket.setMatchId(match.getId());
@@ -121,7 +125,8 @@ public class TicketServiceImpl implements TicketService {
             ticket.setMailSent(true);
             ticketRepository.save(ticket);
 
-            MatchDTO match = catalogClient.getMatchById(ticket.getMatchId());
+            //MatchDTO match = catalogClient.getMatchById(ticket.getMatchId());
+            MatchDTO match = catalogService.getMatchSecurely(ticket.getMatchId());
             TicketResponseDTO dto = mapToResponseDTO(ticket, match, null);
             confirmedDTOs.add(dto);
 
@@ -135,13 +140,14 @@ public class TicketServiceImpl implements TicketService {
     @Override
     public List<TicketResponseDTO> getAllTickets() {
         return ticketRepository.findAll().stream()
-                .map(t -> mapToResponseDTO(t, catalogClient.getMatchById(t.getMatchId()), null))
+                .map(t -> mapToResponseDTO(t, catalogService.getMatchSecurely(t.getMatchId()), null))
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<TicketResponseDTO> getTicketsByMatch(Long matchId) {
-        MatchDTO match = catalogClient.getMatchById(matchId);
+        //MatchDTO match = catalogClient.getMatchById(matchId);
+        MatchDTO match = catalogService.getMatchSecurely(matchId);
         return ticketRepository.findByMatchId(matchId).stream()
                 .map(t -> mapToResponseDTO(t, match, null))
                 .collect(Collectors.toList());
@@ -152,8 +158,10 @@ public class TicketServiceImpl implements TicketService {
     public List<TicketListDTO> getTicketsByUserId(Long userId) {
         return ticketRepository.findByUserId(userId).stream()
                 .map(t -> {
-                    MatchDTO match = catalogClient.getMatchById(t.getMatchId());
-                    SeatDTO seat = catalogClient.getSeatById(t.getSeatId());
+                    //MatchDTO match = catalogClient.getMatchById(t.getMatchId());
+                    MatchDTO match = catalogService.getMatchSecurely(t.getMatchId());
+                    //SeatDTO seat = catalogClient.getSeatById(t.getSeatId());
+                    SeatDTO seat = catalogService.getSeatSecurely(t.getSeatId());
                     return new TicketListDTO(
                             t.getId(), t.getTicketCode(), match.getOpponentName(),
                             "Sector " + seat.getSectorId(), seat.getRowNumber(), seat.getSeatNumber(),
@@ -177,8 +185,8 @@ public class TicketServiceImpl implements TicketService {
             throw new TicketException("Acces refuzat! Plata biletului nu a fost confirmată.");
         }
 
-        MatchDTO match = catalogClient.getMatchById(ticket.getMatchId());
-
+        //MatchDTO match = catalogClient.getMatchById(ticket.getMatchId());
+        MatchDTO match = catalogService.getMatchSecurely(ticket.getMatchId());
 
         if (match.getMatchDate().isBefore(LocalDateTime.now().minusHours(3))) {
             throw new TicketException("Acces refuzat! Acest bilet este pentru un eveniment care a trecut.");
@@ -212,7 +220,8 @@ public class TicketServiceImpl implements TicketService {
             ticket.setMailSent(false); //false in caz de eroare
             ticketRepository.save(ticket);
 
-            MatchDTO match = catalogClient.getMatchById(ticket.getMatchId());
+            //MatchDTO match = catalogClient.getMatchById(ticket.getMatchId());
+            MatchDTO match = catalogService.getMatchSecurely(ticket.getMatchId());
             response.add(mapToResponseDTO(ticket, match, null));
         }
 
@@ -230,7 +239,7 @@ public class TicketServiceImpl implements TicketService {
     }
 
     private TicketResponseDTO mapToResponseDTO(Ticket t, MatchDTO match, SeatDTO seat) {
-        if (seat == null) seat = catalogClient.getSeatById(t.getSeatId());
+        if (seat == null) seat = catalogService.getSeatSecurely(t.getSeatId());
 
         return new TicketResponseDTO(
                 t.getId(),

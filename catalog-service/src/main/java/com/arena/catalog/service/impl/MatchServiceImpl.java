@@ -6,6 +6,9 @@ import com.arena.catalog.repository.*;
 import com.arena.catalog.service.MatchService;
 import com.arena.catalog.exception.CatalogException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; 
@@ -18,6 +21,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MatchServiceImpl implements MatchService {
 
     private final MatchRepository matchRepository;
@@ -33,7 +37,9 @@ public class MatchServiceImpl implements MatchService {
     }
 
     @Override
+    @CacheEvict(value = {"allMatchesCache", "upcomingMatchesCache"}, allEntries = true)
     public MatchDTO createMatch(MatchRequestDTO dto) {
+        log.info(">>> Meci creat. Curăț cache-ul pentru liste.");
         Stadium stadium = stadiumRepository.findById(dto.getStadiumId())
                 .orElseThrow(() -> new CatalogException("Stadionul nu a fost găsit!"));
 
@@ -47,14 +53,18 @@ public class MatchServiceImpl implements MatchService {
         return mapToDTO(savedMatch);
     }
     @Override
+    @Cacheable(value = "allMatchesCache")
     public List<MatchDTO> getAllMatchesDTO() {
+        log.info(">>> Cache MISS pentru ALL matches");
         return matchRepository.findAll().stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
 
     @Override
+    @Cacheable(value = "upcomingMatchesCache")
     public List<MatchDTO> getUpcomingMatchesDTO() {
+        log.info(">>> Cache MISS pentru UPCOMING matches");
         return matchRepository.findByMatchDateAfterAndStatus(LocalDateTime.now(), MatchStatus.SCHEDULED)
                 .stream()
                 .map(this::mapToDTO)
@@ -63,7 +73,9 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "sectorPriceCache", allEntries = true)
     public void setMatchPrices(List<PriceRequestDTO> prices) {
+        log.info(">>> Prețuri actualizate. Curăț cache prețuri.");
         for (PriceRequestDTO dto : prices) {
             Match match = matchRepository.findById(dto.getMatchId())
                     .orElseThrow(() -> new CatalogException("Meci negăsit"));
@@ -99,7 +111,9 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"allMatchesCache", "upcomingMatchesCache", "matchDetailsCache"}, allEntries = true)
     public void updateMatchStatus(Long matchId, MatchStatus newStatus) {
+        log.info(">>> Status meci {} modificat în {}. Reset cache.", matchId, newStatus);
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new CatalogException("Meciul nu a fost găsit!"));
 
@@ -134,7 +148,9 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"allMatchesCache", "upcomingMatchesCache"}, allEntries = true)
     public void deleteMatch(Long id) {
+        log.info(">>> Meci șters {}. Reset cache.", id);
         if (!matchRepository.existsById(id)) {
             throw new CatalogException("Meciul cu ID-ul " + id + " nu există!");
         }
@@ -142,7 +158,9 @@ public class MatchServiceImpl implements MatchService {
     }
 
     @Override
+    @Cacheable(value = "matchDetailsCache", key = "#id")
     public MatchDTO getMatchById(Long id) {
+        log.info(">>> Cache MISS pentru detalii meci ID: {}", id);
         Match match = matchRepository.findById(id)
                 .orElseThrow(() -> new CatalogException("Meciul cu ID-ul " + id + " nu a fost găsit"));
 
@@ -151,7 +169,9 @@ public class MatchServiceImpl implements MatchService {
     }
 
     @Override
+    @Cacheable(value = "sectorPriceCache", key = "{#matchId, #sectorId}")
     public Double getSectorPrice(Long matchId, Long sectorId) {
+        log.info(">>> Cache MISS pentru preț sector: {} la meciul: {}", sectorId, matchId);
         // Folosim repository-ul tău: matchSectorPriceRepository
         return matchSectorPriceRepository.findByMatchIdAndSectorId(matchId, sectorId)
                 .map(MatchSectorPrice::getPrice)
