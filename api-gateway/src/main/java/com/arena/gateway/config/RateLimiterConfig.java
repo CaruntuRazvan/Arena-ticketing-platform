@@ -10,9 +10,14 @@ public class RateLimiterConfig {
 
     @Bean
     public KeyResolver userKeyResolver() {
-        // limiteaza cererile in funcție de IP-ul celui care apeleaza
-        return exchange -> Mono.just(
-                exchange.getRequest().getRemoteAddress().getAddress().getHostAddress()
-        );
+        return exchange -> {
+            String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
+
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                return Mono.just(authHeader);
+            }
+
+            return Mono.just(exchange.getRequest().getRemoteAddress().getAddress().getHostAddress());
+        };
     }
 }
