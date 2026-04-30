@@ -6,14 +6,21 @@ spring:
     redis:
       host: localhost
       port: 6379
+      database: 0
   cloud:
     gateway:
       routes:
-        # RUTA 1: LOGIN & REGISTER (Sunt publice, nu cerem token)
+        # RUTA 1: LOGIN & REGISTER (Protecție Brute Force - Limită Mică)
         - id: auth-public
           uri: lb://AUTH-SERVICE
           predicates:
             - Path=/api/users/login, /api/users/register, /api/users/verify, /api/users/resend-code
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 1   # 1 cerere pe secundă (aprox 60/min)
+                redis-rate-limiter.burstCapacity: 3   # Maxim 3 cereri instant
+                key-resolver: "#{@userKeyResolver}"
 
         - id: auth-service-protected
           uri: lb://AUTH-SERVICE
@@ -27,12 +34,18 @@ spring:
                 redis-rate-limiter.burstCapacity: 10
                 key-resolver: "#{@userKeyResolver}"
 
-        # RUTA 2: CATALOG (Stadioane, Meciuri) - Partea publică e liberă, partea de admin e protejată
+        # RUTA 2: CATALOG PUBLIC (Navigare rapidă - Limită Mare)
         - id: catalog-public
           uri: lb://CATALOG-SERVICE
           predicates:
             - Path=/api/catalog/stadiums/**, /api/catalog/matches/**, /api/catalog/seats/**
             - Method=GET
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20  # 20 cereri pe secundă
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@userKeyResolver}"
 
         - id: catalog-admin
           uri: lb://CATALOG-SERVICE
@@ -40,36 +53,43 @@ spring:
             - Path=/api/catalog/stadiums/**, /api/catalog/matches/**
             - Method=POST, PATCH, DELETE
           filters:
-            - AuthenticationFilter # Doar adminii (sau userii logați) pot crea stadioane/meciuri
+            - AuthenticationFilter
             - name: RequestRateLimiter
               args:
                 redis-rate-limiter.replenishRate: 2
                 redis-rate-limiter.burstCapacity: 5
                 key-resolver: "#{@userKeyResolver}"
 
-
-        # RUTA 3: TICKETING - Partea pentru USER (Buy, Confirm, My Tickets)
+        # RUTA 3: TICKETING BUY (Prevenire Boți - Limită Medie)
         - id: ticketing-user
           uri: lb://TICKETING-SERVICE
           predicates:
             - Path=/api/ticketing/buy, /api/ticketing/confirm, /api/ticketing/user/**
           filters:
             - AuthenticationFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 2   # 2 cereri pe secundă (destul pentru un om)
+                redis-rate-limiter.burstCapacity: 5
+                key-resolver: "#{@userKeyResolver}"
 
-        # RUTA 4: TICKETING - Partea pentru ADMIN (Validate, Get All, Match Stats)
+        # RUTA 4: TICKETING ADMIN
         - id: ticketing-admin
           uri: lb://TICKETING-SERVICE
           predicates:
             - Path=/api/ticketing/validate/**, /api/ticketing/match/**, /api/ticketing
           filters:
             - AuthenticationFilter
-            # Aici am putea adăuga un filtru de RoleCheck dacă filtrul tău de auth suportă asta
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                key-resolver: "#{@userKeyResolver}"
 
         - id: notification-service
           uri: lb://NOTIFICATION-SERVICE
           predicates:
             - Path=/api/notifications/**
-
 
 app:
   jwt:
