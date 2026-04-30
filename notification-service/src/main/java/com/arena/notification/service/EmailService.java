@@ -28,4 +28,16 @@ public class EmailService {
 
         mailSender.send(message);
     }
+    public void sendSimpleEmail(String to, String subject, String content) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(content, true); // true pentru HTML
+            mailSender.send(message);
+        } catch (Exception e) {
+            throw new RuntimeException("Eșec la trimiterea mail-ului simplu către " + to, e);
+        }
+    }
 }
