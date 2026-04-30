@@ -1,6 +1,7 @@
 package com.arena.auth.config;
 
 import com.arena.auth.model.User;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -39,5 +40,16 @@ public class JwtUtils {
     private Key getSigningKey() {
 
         return Keys.hmacShaKeyFor(secretKey.getBytes());
+    }
+    public Claims getClaimsFromToken(String token) {
+        return Jwts.parser()
+                .verifyWith((javax.crypto.SecretKey) getSigningKey())
+                .build()
+                .parseSignedClaims(token) // parseSignedClaims in loc de parseClaimsJws
+                .getPayload(); // getPayload in loc de getBody
+    }
+
+    public Date getExpirationDateFromToken(String token) {
+        return getClaimsFromToken(token).getExpiration();
     }
 }
