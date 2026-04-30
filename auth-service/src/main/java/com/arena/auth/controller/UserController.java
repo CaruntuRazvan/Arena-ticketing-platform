@@ -61,4 +61,10 @@ public class UserController {
         userService.updateLoyaltyPoints(id, points);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(@RequestHeader("Authorization") String token) {
+        userService.logout(token);
+        return ResponseEntity.ok("Logout reușit! Token-ul a fost invalidat.");
+    }
 }

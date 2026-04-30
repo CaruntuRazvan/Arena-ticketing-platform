@@ -1,9 +1,7 @@
 package com.arena.auth.service.impl;
 
-import com.arena.auth.dto.LoginRequestDTO;
-import com.arena.auth.dto.LoginResponseDTO;
-import com.arena.auth.dto.RegisterRequestDTO;
-import com.arena.auth.dto.UserResponseDTO;
+import com.arena.auth.client.NotificationClient;
+import com.arena.auth.dto.*;
 import com.arena.auth.model.User;
 import com.arena.auth.model.UserProfile;
 import com.arena.auth.repository.UserRepository;
@@ -15,7 +13,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.arena.auth.exception.AuthException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.arena.auth.service.EmailService;
+
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -28,13 +27,17 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redisTemplate;
-    private final EmailService emailService;
+    private final NotificationClient notificationClient;
     private final JwtUtils jwtUtils;
+
     @Override
     public LoginResponseDTO login(LoginRequestDTO request) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new AuthException("Utilizator negăsit!"));
 
+        if (!user.isEnabled()) {
+            throw new AuthException("Contul nu este activat! Te rugăm să verifici email-ul.");
+        }
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new AuthException("Parolă incorectă!");
         }
@@ -50,6 +53,9 @@ public class UserServiceImpl implements UserService {
     public UserResponseDTO registerUser(RegisterRequestDTO request) {
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new AuthException("Username-ul există deja!");
+        }
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new AuthException("Email-ul este deja utilizat de un alt cont!");
         }
 
         User user = new User();
@@ -77,11 +83,11 @@ public class UserServiceImpl implements UserService {
         redisTemplate.opsForValue().set(redisKey, code, 10, TimeUnit.MINUTES);
 
         // Trimitem Email
-        emailService.sendSimpleMessage(
+        notificationClient.sendEmail(new NotificationRequestDTO(
                 user.getEmail(),
-                "Activare Cont Arena auth",
-                "Codul tău de activare este: " + code
-        );
+                "Activare Cont Arena",
+                "Codul tău de activare este: <b>" + code + "</b>"
+        ));
 
         return mapToDTO(savedUser);
     }
@@ -142,11 +148,11 @@ public class UserServiceImpl implements UserService {
         redisTemplate.opsForValue().set(redisKey, newCode, 10, TimeUnit.MINUTES);
 
         // 4. Trimitem noul mail
-        emailService.sendSimpleMessage(
+        notificationClient.sendEmail(new NotificationRequestDTO(
                 email,
-                "Cod Nou de Verificare Arena auth",
-                "Noul tău cod de activare este: " + newCode + ". Acesta expiră în 10 minute."
-        );
+                "Cod Nou de Verificare Arena",
+                "Noul tău cod este: <b>" + newCode + "</b>. Expiră în 10 minute."
+        ));
 
         System.out.println("[REDIS] Cod nou generat pentru: " + email);
     }
@@ -179,6 +185,26 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
     }
 
+    @Override
+    public void logout(String token) {
+        if (token != null && token.startsWith("Bearer ")) {
+            String jwt = token.substring(7);
+            try {
+                // Extragem data de expirare folosind noua metodă
+                Date expirationDate = jwtUtils.getExpirationDateFromToken(jwt);
+                long ttl = expirationDate.getTime() - System.currentTimeMillis();
+
+                if (ttl > 0) {
+                    // Salvăm în Redis cu prefixul pe care îl va căuta Gateway-ul
+                    redisTemplate.opsForValue().set("blacklist:" + jwt, "logout", ttl, TimeUnit.MILLISECONDS);
+                    System.out.println("[REDIS] Token invalidat cu succes pentru restul de: " + ttl + " ms");
+                }
+            } catch (Exception e) {
+                // Dacă token-ul e deja invalid sau expirat, nu mai facem nimic
+                System.out.println("Logout ignorat: Token-ul este deja invalid sau expirat.");
+            }
+        }
+    }
     private UserResponseDTO mapToDTO(User user) {
         return new UserResponseDTO(
                 user.getId(),

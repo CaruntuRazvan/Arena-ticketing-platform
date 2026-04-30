@@ -1,10 +1,8 @@
 package com.arena.auth.service;
 
 
-import com.arena.auth.dto.RegisterRequestDTO;
-import com.arena.auth.dto.LoginRequestDTO;
-import com.arena.auth.dto.UserResponseDTO;
-import com.arena.auth.dto.LoginResponseDTO;
+import com.arena.auth.dto.*;
+import org.springframework.web.bind.annotation.RequestBody;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,4 +16,5 @@ public interface UserService {
     List<UserResponseDTO> getAllUsers();
     void deleteUser(Long id);
     void updateLoyaltyPoints(Long userId, int points);
+    void logout(String token);
 }
