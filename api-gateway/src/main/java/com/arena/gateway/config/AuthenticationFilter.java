@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import io.jsonwebtoken.Claims;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 
 @Component
 @Lazy
@@ -20,8 +21,11 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     @Value("${app.jwt.secret}")
     private String secretKey;
 
-    public AuthenticationFilter() {
+    private final ReactiveStringRedisTemplate redisTemplate;
+
+    public AuthenticationFilter(ReactiveStringRedisTemplate redisTemplate) {
         super(Config.class);
+        this.redisTemplate = redisTemplate;
     }
 
     public static class Config { }
@@ -29,40 +33,44 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
-            // 1. Verificăm dacă există header-ul Authorization (Token-ul)
             if (!exchange.getRequest().getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
                 return stopWithStatus(exchange, HttpStatus.UNAUTHORIZED);
             }
 
             String authHeader = exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION).get(0);
-
-            // 2. Curățăm token-ul (scoatem "Bearer " din față)
             String token = (authHeader != null && authHeader.startsWith("Bearer "))
                     ? authHeader.substring(7) : authHeader;
 
-            try {
-                Claims claims = Jwts.parserBuilder()
-                        .setSigningKey(Keys.hmacShaKeyFor(secretKey.getBytes()))
-                        .build()
-                        .parseClaimsJws(token)
-                        .getBody();
+            return redisTemplate.hasKey("blacklist:" + token)
+                    .flatMap(isBlacklisted -> {
+                        //System.out.println("Gateway verifică Redis. Găsit? " + isBlacklisted);
 
-                String path = exchange.getRequest().getPath().toString();
-                String method = exchange.getRequest().getMethod().name();
+                        if (Boolean.TRUE.equals(isBlacklisted)) {
+                            return stopWithStatus(exchange, HttpStatus.UNAUTHORIZED);
+                        }
 
-                if (path.contains("/admin") || !method.equals("GET")) {
-                    String role = claims.get("role", String.class); // Presupunem că în Auth Service pui rolul în claim-ul "role"
+                        try {
+                            // Folosim parserBuilder pentru versiunea ta de JJWT
+                            Claims claims = Jwts.parserBuilder()
+                                    .setSigningKey(Keys.hmacShaKeyFor(secretKey.getBytes()))
+                                    .build()
+                                    .parseClaimsJws(token)
+                                    .getBody();
 
-                    if (role == null || !role.equalsIgnoreCase("ADMIN")) {
-                        return stopWithStatus(exchange, HttpStatus.FORBIDDEN); // 403 dacă nu e admin
-                    }
-                }
+                            String path = exchange.getRequest().getPath().toString();
+                            String method = exchange.getRequest().getMethod().name();
 
-                return chain.filter(exchange);
-            } catch (Exception e) {
-
-                return stopWithStatus(exchange, HttpStatus.UNAUTHORIZED);
-            }
+                            if (path.contains("/admin") || !method.equals("GET")) {
+                                String role = claims.get("role", String.class);
+                                if (role == null || !role.equalsIgnoreCase("ADMIN")) {
+                                    return stopWithStatus(exchange, HttpStatus.FORBIDDEN);
+                                }
+                            }
+                            return chain.filter(exchange);
+                        } catch (Exception e) {
+                            return stopWithStatus(exchange, HttpStatus.UNAUTHORIZED);
+                        }
+                    });
         };
     }
 
@@ -71,3 +79,9 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
         return exchange.getResponse().setComplete();
     }
 }
+
+
+
+
+
+
