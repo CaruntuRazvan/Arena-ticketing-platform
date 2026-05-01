@@ -9,4 +9,5 @@ public class LoginRequestDTO {
     String username;
     @NotBlank(message = "Parola este obligatorie")
     String password;
+    boolean rememberMe;
 }

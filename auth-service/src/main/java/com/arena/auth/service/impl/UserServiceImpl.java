@@ -2,12 +2,17 @@ package com.arena.auth.service.impl;
 
 import com.arena.auth.client.NotificationClient;
 import com.arena.auth.dto.*;
+import com.arena.auth.model.RefreshToken;
 import com.arena.auth.model.User;
 import com.arena.auth.model.UserProfile;
+import com.arena.auth.repository.RefreshTokenRepository;
 import com.arena.auth.repository.UserRepository;
+import com.arena.auth.service.RefreshTokenService;
 import com.arena.auth.service.UserService;
 import com.arena.auth.config.JwtUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import com.arena.auth.exception.AuthException;
@@ -28,9 +33,11 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redisTemplate;
     private final NotificationClient notificationClient;
+    private final RefreshTokenService refreshTokenService;
     private final JwtUtils jwtUtils;
 
     @Override
+    @Transactional // acum scriem in refresh_tokens
     public LoginResponseDTO login(LoginRequestDTO request) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new AuthException("Utilizator negăsit!"));
@@ -41,13 +48,27 @@ public class UserServiceImpl implements UserService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new AuthException("Parolă incorectă!");
         }
+        // 1. Generăm biletul de acces (JWT)
+        String accessToken = jwtUtils.generateToken(user);
 
-        // Generezi token-ul
-        String token = jwtUtils.generateToken(user);
+        // 2. Gestionăm biletul de rezervă (Refresh Token)
+        String refreshTokenString = null;
 
-        // Returnezi DTO-ul (dacă ai ales varianta cu record)
-        return new LoginResponseDTO(token, user.getUsername(), user.getRole());
+        if (request.isRememberMe()) {
+            // Folosim serviciul pentru a crea obiectul și a-l salva în DB
+            RefreshToken refreshTokenObj = refreshTokenService.createRefreshToken(user.getId());
+            refreshTokenString = refreshTokenObj.getToken();
+        }
+
+        // 3. Returnăm DTO-ul cu TOATE datele
+        return new LoginResponseDTO(
+                accessToken,
+                refreshTokenString, // trimitem și biletul de rezervă
+                user.getUsername(),
+                user.getRole()
+        );
     }
+
     @Override
     @Transactional
     public UserResponseDTO registerUser(RegisterRequestDTO request) {
@@ -158,18 +179,48 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
+    public LoginResponseDTO refreshToken(TokenRefreshRequestDTO request) {
+        return refreshTokenService.findByToken(request.refreshToken())
+                .map(refreshTokenService::verifyExpiration) // Verifică data în DB
+                .map(RefreshToken::getUser) // Extrage userul
+                .map(user -> {
+                    // Generăm un Access Token (JWT) NOU
+                    String accessToken = jwtUtils.generateToken(user);
+
+                    // Returnăm biletul nou de acces + păstrăm refresh token-ul actual
+                    return new LoginResponseDTO(
+                            accessToken,
+                            request.refreshToken(),
+                            user.getUsername(),
+                            user.getRole()
+                    );
+                })
+                .orElseThrow(() -> new AuthException("Refresh token-ul nu a fost găsit!"));
+    }
+
+    @Override
     public Optional<UserResponseDTO> getUserById(Long id) {
         return userRepository.findById(id)
                 .map(this::mapToDTO);
     }
-
+    /*
     @Override
     public List<UserResponseDTO> getAllUsers() {
         return userRepository.findAll().stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
-
+    */
+    @Override
+    public Page<UserResponseDTO> getAllUsers(Pageable pageable) {
+        return userRepository.findAll(pageable)
+                .map(this::mapToDTO);
+    }
+    @Override
+    public List<String> getAllEmails() {
+        return userRepository.findAllEmails();
+    }
     @Override
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
@@ -199,6 +250,13 @@ public class UserServiceImpl implements UserService {
                     redisTemplate.opsForValue().set("blacklist:" + jwt, "logout", ttl, TimeUnit.MILLISECONDS);
                     System.out.println("[REDIS] Token invalidat cu succes pentru restul de: " + ttl + " ms");
                 }
+                // Stergem si refresh token din baza
+                String username = jwtUtils.getClaimsFromToken(jwt).getSubject();
+                userRepository.findByUsername(username).ifPresent(user -> {
+                    refreshTokenService.deleteByUserId(user.getId());
+                    System.out.println("[SQL] Refresh Token șters pentru user: " + username);
+                });
+
             } catch (Exception e) {
                 // Dacă token-ul e deja invalid sau expirat, nu mai facem nimic
                 System.out.println("Logout ignorat: Token-ul este deja invalid sau expirat.");
