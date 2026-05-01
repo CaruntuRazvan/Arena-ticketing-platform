@@ -2,6 +2,8 @@ package com.arena.auth.service;
 
 
 import com.arena.auth.dto.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.RequestBody;
 import java.util.List;
 import java.util.Optional;
@@ -13,8 +15,11 @@ public interface UserService {
     //UserResponseDTO login(LoginRequestDTO loginRequest);
     LoginResponseDTO login(LoginRequestDTO request);
     Optional<UserResponseDTO> getUserById(Long id);
-    List<UserResponseDTO> getAllUsers();
+    //List<UserResponseDTO> getAllUsers();
+    Page<UserResponseDTO> getAllUsers(Pageable pageable);
     void deleteUser(Long id);
     void updateLoyaltyPoints(Long userId, int points);
     void logout(String token);
+    LoginResponseDTO refreshToken(TokenRefreshRequestDTO request);
+    List<String> getAllEmails();
 }

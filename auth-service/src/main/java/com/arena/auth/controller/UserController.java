@@ -4,9 +4,15 @@ import com.arena.auth.dto.LoginRequestDTO;
 import com.arena.auth.dto.LoginResponseDTO;
 import com.arena.auth.dto.RegisterRequestDTO;
 import com.arena.auth.dto.UserResponseDTO;
+import com.arena.auth.dto.TokenRefreshRequestDTO;
 import com.arena.auth.service.UserService;
+import com.arena.auth.service.RefreshTokenService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +25,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final RefreshTokenService refreshTokenService;
 
     @PostMapping("/register")
     public ResponseEntity<UserResponseDTO> register(@Valid @RequestBody RegisterRequestDTO registerDTO) {
@@ -43,10 +50,22 @@ public class UserController {
     public ResponseEntity<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequest) {
         return ResponseEntity.ok(userService.login(loginRequest));
     }
-
+    /*
     @GetMapping
     public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
+    }
+     */
+    @GetMapping
+    public ResponseEntity<Page<UserResponseDTO>> getAllUsers(
+            @PageableDefault(size = 20, sort = "username", direction = Sort.Direction.ASC) Pageable pageable) {
+        return ResponseEntity.ok(userService.getAllUsers(pageable));
+    }
+
+    @GetMapping("/emails")
+    public ResponseEntity<List<String>> getAllUserEmails() {
+        List<String> emails = userService.getAllEmails();
+        return ResponseEntity.ok(emails);
     }
 
     @GetMapping("/{id}")
@@ -66,5 +85,10 @@ public class UserController {
     public ResponseEntity<String> logout(@RequestHeader("Authorization") String token) {
         userService.logout(token);
         return ResponseEntity.ok("Logout reușit! Token-ul a fost invalidat.");
+    }
+
+    @PostMapping("/refresh-token")
+    public LoginResponseDTO refreshToken(@RequestBody TokenRefreshRequestDTO request) {
+        return userService.refreshToken(request);
     }
 }

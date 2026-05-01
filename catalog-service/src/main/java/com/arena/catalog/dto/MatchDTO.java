@@ -17,4 +17,5 @@ public class MatchDTO {
     private LocalDateTime matchDate;
     private String stadiumName;
     private MatchStatus status;
+    private boolean isPublished;
 }

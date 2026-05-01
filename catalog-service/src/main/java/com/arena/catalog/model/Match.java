@@ -27,6 +27,9 @@ public class Match {
     @Enumerated(EnumType.STRING)
     private MatchStatus status = MatchStatus.SCHEDULED;
 
+    @Column(nullable = false)
+    private boolean isPublished = false;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "stadium_id", nullable = false)
     private Stadium stadium;

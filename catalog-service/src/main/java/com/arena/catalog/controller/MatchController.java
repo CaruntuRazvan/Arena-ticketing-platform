@@ -9,6 +9,10 @@ import com.arena.catalog.model.MatchSectorPrice;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,7 +27,7 @@ import java.time.LocalDateTime;
 public class MatchController {
 
     private final MatchService matchService;
-
+    /*
     @GetMapping
     public ResponseEntity<List<MatchDTO>> getAllMatches() {
         return ResponseEntity.ok(matchService.getAllMatchesDTO());
@@ -33,6 +37,18 @@ public class MatchController {
     public ResponseEntity<List<MatchDTO>> getUpcoming() {
         // folosind un mapper sau manual cu .stream().map(...)
         return ResponseEntity.ok(matchService.getUpcomingMatchesDTO());
+    }
+    */
+    @GetMapping
+    public ResponseEntity<Page<MatchDTO>> getAllMatches(
+            @PageableDefault(size = 10, sort = "matchDate", direction = Sort.Direction.ASC) Pageable pageable) {
+        return ResponseEntity.ok(matchService.getAllMatchesDTO(pageable));
+    }
+
+    @GetMapping("/upcoming")
+    public ResponseEntity<Page<MatchDTO>> getUpcoming(
+            @PageableDefault(size = 5, sort = "matchDate", direction = Sort.Direction.ASC) Pageable pageable) {
+        return ResponseEntity.ok(matchService.getUpcomingMatchesDTO(pageable));
     }
 
     @PostMapping
@@ -54,6 +70,12 @@ public class MatchController {
 
         matchService.updateMatchStatus(id, status);
         return ResponseEntity.ok("Statusul meciului a fost actualizat în " + status);
+    }
+
+    @PostMapping("/{id}/publish")
+    public ResponseEntity<String> publishMatch(@PathVariable Long id) {
+        matchService.publishMatch(id);
+        return ResponseEntity.ok("Meciul a fost publicat și notificările au fost trimise către fani!");
     }
 
     @DeleteMapping("/{id}")

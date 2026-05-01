@@ -1,5 +1,6 @@
 package com.arena.catalog.service.impl;
 
+import com.arena.catalog.client.NotificationClient;
 import com.arena.catalog.model.*;
 import com.arena.catalog.dto.*;
 import com.arena.catalog.repository.*;
@@ -9,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; 
@@ -29,6 +32,7 @@ public class MatchServiceImpl implements MatchService {
     private final StadiumRepository stadiumRepository;
     private final SectorRepository sectorRepository;
     private final SeatRepository seatRepository;
+    private final NotificationClient notificationClient;
 
     private Double getRequiredPrice(Long matchId, Long sectorId) {
         return matchSectorPriceRepository.findByMatchIdAndSectorId(matchId, sectorId)
@@ -52,6 +56,7 @@ public class MatchServiceImpl implements MatchService {
         Match savedMatch = matchRepository.save(match);
         return mapToDTO(savedMatch);
     }
+    /*
     @Override
     @Cacheable(value = "allMatchesCache")
     public List<MatchDTO> getAllMatchesDTO() {
@@ -69,6 +74,26 @@ public class MatchServiceImpl implements MatchService {
                 .stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
+    }
+    */
+
+    @Override
+    @Cacheable(value = "allMatchesCache", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
+    public Page<MatchDTO> getAllMatchesDTO(Pageable pageable) {
+        log.info(">>> Cache MISS pentru ALL matches (Page: {})", pageable.getPageNumber());
+        return matchRepository.findAll(pageable)
+                .map(this::mapToDTO); // .map pe Page păstrează metadatele de paginare
+    }
+
+    @Override
+    @Cacheable(value = "upcomingMatchesCache", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
+    public Page<MatchDTO> getUpcomingMatchesDTO(Pageable pageable) {
+        log.info(">>> Cache MISS pentru UPCOMING matches (Page: {})", pageable.getPageNumber());
+        return matchRepository.findByMatchDateAfterAndStatusAndIsPublishedTrue(
+                LocalDateTime.now(),
+                MatchStatus.SCHEDULED,
+                pageable
+        ).map(this::mapToDTO);
     }
 
     @Override
@@ -92,6 +117,42 @@ public class MatchServiceImpl implements MatchService {
             msp.setPrice(dto.getPrice());
 
             matchSectorPriceRepository.save(msp);
+        }
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = {"upcomingMatchesCache", "allMatchesCache"}, allEntries = true)
+    public void publishMatch(Long matchId) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new CatalogException("Meciul nu a fost găsit!"));
+
+        // are preturi configurate?
+        boolean hasPrices = matchSectorPriceRepository.existsByMatchId(matchId);
+        if (!hasPrices) {
+            throw new CatalogException("Nu poți publica meciul fără a configura prețurile sectoarelor!");
+        }
+
+        // schimbam in publish
+        match.setPublished(true);
+        matchRepository.save(match);
+
+        log.info(">>> Meciul {} a fost publicat!", matchId);
+
+        MatchNotificationRequestDTO notification = new MatchNotificationRequestDTO(
+                match.getOpponentName(),
+                match.getMatchDate().toString(),
+                match.getStadium().getName(),
+                null
+        );
+
+        // Apelul propriu-zis către celălalt microserviciu
+        try {
+            notificationClient.broadcastMatch(notification);
+            log.info(">>> Notificarea de broadcast a fost trimisă către Notification Service.");
+        } catch (Exception e) {
+            // Logăm eroarea dar NU dăm rollback la tranzacție (meciul rămâne publicat chiar dacă notificarea a eșuat momentan)
+            log.error(">>> Eroare la trimiterea notificării prin Feign: {}", e.getMessage());
         }
     }
 
@@ -185,6 +246,7 @@ public class MatchServiceImpl implements MatchService {
         dto.setMatchDate(match.getMatchDate());
         dto.setStatus(match.getStatus());
         dto.setStadiumName(match.getStadium().getName());
+        dto.setPublished(match.isPublished());
         return dto;
     }
 }

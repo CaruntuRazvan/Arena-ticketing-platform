@@ -22,6 +22,13 @@ spring:
                 redis-rate-limiter.burstCapacity: 3   # Maxim 3 cereri instant
                 key-resolver: "#{@userKeyResolver}"
 
+        # Acces intern pentru email-uri
+        - id: auth-internal-emails
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/api/users/emails
+
+
         - id: auth-service-protected
           uri: lb://AUTH-SERVICE
           predicates:
@@ -33,6 +40,7 @@ spring:
                 redis-rate-limiter.replenishRate: 5
                 redis-rate-limiter.burstCapacity: 10
                 key-resolver: "#{@userKeyResolver}"
+
 
         # RUTA 2: CATALOG PUBLIC (Navigare rapidă - Limită Mare)
         - id: catalog-public

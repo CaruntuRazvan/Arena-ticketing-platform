@@ -7,4 +7,5 @@ import java.util.Optional;
 @Repository
 public interface MatchSectorPriceRepository extends JpaRepository<MatchSectorPrice, Long> {
     Optional<MatchSectorPrice> findByMatchIdAndSectorId(Long matchId, Long sectorId);
+    boolean existsByMatchId(Long matchId);
 }
