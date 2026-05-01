@@ -4,6 +4,10 @@ import com.arena.ticketing.dto.*;
 import com.arena.ticketing.service.TicketService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,7 +29,7 @@ public class TicketController {
     public ResponseEntity<List<TicketResponseDTO>> confirmTickets(@RequestBody List<Long> ticketIds) {
         return ResponseEntity.ok(ticketService.confirmPayment(ticketIds));
     }
-
+    /*
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<TicketListDTO>> getMyTickets(@PathVariable Long userId) {
         return ResponseEntity.ok(ticketService.getTicketsByUserId(userId));
@@ -39,6 +43,26 @@ public class TicketController {
     @GetMapping
     public ResponseEntity<List<TicketResponseDTO>> getAllTickets() {
         return ResponseEntity.ok(ticketService.getAllTickets());
+    }
+    */
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<Page<TicketListDTO>> getMyTickets(
+            @PathVariable Long userId,
+            @PageableDefault(size = 5, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ticketService.getTicketsByUserId(userId, pageable));
+    }
+
+    @GetMapping("/match/{matchId}")
+    public ResponseEntity<Page<TicketResponseDTO>> getTicketsByMatch(
+            @PathVariable Long matchId,
+            @PageableDefault(size = 10, sort = "id") Pageable pageable) {
+        return ResponseEntity.ok(ticketService.getTicketsByMatch(matchId, pageable));
+    }
+
+    @GetMapping
+    public ResponseEntity<Page<TicketResponseDTO>> getAllTickets(
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ticketService.getAllTickets(pageable));
     }
 
     @PatchMapping("/validate/{ticketCode}")

@@ -11,6 +11,8 @@ import com.arena.ticketing.repository.TicketRepository;
 import com.arena.ticketing.service.TicketService;
 import com.arena.ticketing.service.impl.CatalogIntegrationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -136,7 +138,7 @@ public class TicketServiceImpl implements TicketService {
         authClient.updatePoints(userId, tickets.size());
         return confirmedDTOs;
     }
-
+    /*
     @Override
     public List<TicketResponseDTO> getAllTickets() {
         return ticketRepository.findAll().stream()
@@ -169,7 +171,35 @@ public class TicketServiceImpl implements TicketService {
                     );
                 }).collect(Collectors.toList());
     }
+    */
+    @Override
+    public Page<TicketListDTO> getTicketsByUserId(Long userId, Pageable pageable) {
+        return ticketRepository.findByUserId(userId, pageable)
+                .map(t -> {
+                    // Luăm datele din Catalog (care are cache, deci e rapid)
+                    MatchDTO match = catalogService.getMatchSecurely(t.getMatchId());
+                    SeatDTO seat = catalogService.getSeatSecurely(t.getSeatId());
 
+                    return new TicketListDTO(
+                            t.getId(), t.getTicketCode(), match.getOpponentName(),
+                            "Sector " + seat.getSectorId(), seat.getRowNumber(), seat.getSeatNumber(),
+                            t.getFinalPrice(), t.isUsed()
+                    );
+                });
+    }
+
+    @Override
+    public Page<TicketResponseDTO> getTicketsByMatch(Long matchId, Pageable pageable) {
+        MatchDTO match = catalogService.getMatchSecurely(matchId);
+        return ticketRepository.findByMatchId(matchId, pageable)
+                .map(t -> mapToResponseDTO(t, match, null));
+    }
+
+    @Override
+    public Page<TicketResponseDTO> getAllTickets(Pageable pageable) {
+        return ticketRepository.findAll(pageable)
+                .map(t -> mapToResponseDTO(t, catalogService.getMatchSecurely(t.getMatchId()), null));
+    }
     @Override
     @Transactional
     public void validateTicket(String ticketCode) {
