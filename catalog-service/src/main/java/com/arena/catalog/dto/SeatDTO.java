@@ -12,4 +12,5 @@ public class SeatDTO {
     private int rowNumber;
     private int seatNumber;
     private Long sectorId;
+    private boolean occupied;
 }

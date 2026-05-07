@@ -8,4 +8,5 @@ import java.util.List;
 public interface SeatService {
     List<SeatDTO> getSeatsBySector(Long sectorId);
     SeatDTO getSeatById(Long id);
+    List<SeatDTO> getSeatsBySector(Long matchId, Long sectorId);
 }
