@@ -71,6 +71,13 @@ public class TicketController {
         return ResponseEntity.ok("Acces permis! Biletul " + ticketCode + " a fost validat.");
     }
 
+    @PostMapping("/occupied-seats")
+    public ResponseEntity<List<Long>> getOccupiedSeats(
+            @RequestParam Long matchId,
+            @RequestBody List<Long> seatIds) {
+
+        return ResponseEntity.ok(ticketService.getOccupiedSeatsInList(matchId, seatIds));
+    }
     /* NOTĂ: Metoda de download PDF și Revenue Report sunt momentan comentate
        până când implementăm PDF Service și logica de agregare cross-service.
     */

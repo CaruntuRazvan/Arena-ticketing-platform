@@ -28,16 +28,25 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     Page<Ticket> findByMatchId(Long matchId, Pageable pageable);
 
     @Query("SELECT t.seatId FROM Ticket t WHERE t.matchId = :matchId")
-
     List<Long> findOccupiedSeatIdsByMatch(@Param("matchId") Long matchId);
 
     long countByMatchId(Long matchId);
 
     // long countByMatchIdAndSeatSectorId(Long matchId, Long sectorId);
 
+
     Optional<Ticket> findByTicketCode(String ticketCode);
 
     long countByMatchIdAndUserId(Long matchId, Long userId);
+
+    @Query("SELECT t.seatId FROM Ticket t WHERE t.matchId = :matchId " +
+            "AND t.seatId IN :seatIds " +
+            "AND (t.status = 'CONFIRMED' OR (t.status = 'PENDING' AND t.createdAt > :timeout))")
+    List<Long> findOccupiedSeatIdsInList(
+            @Param("matchId") Long matchId,
+            @Param("seatIds") List<Long> seatIds,
+            @Param("timeout") LocalDateTime timeout
+    );
 
     // MODIFICAT: Am scos punctele (t.match.id -> t.matchId)
     @Query("SELECT COUNT(t) > 0 FROM Ticket t WHERE t.matchId = :matchId AND t.seatId = :seatId " +

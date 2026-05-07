@@ -176,7 +176,6 @@ public class TicketServiceImpl implements TicketService {
     public Page<TicketListDTO> getTicketsByUserId(Long userId, Pageable pageable) {
         return ticketRepository.findByUserId(userId, pageable)
                 .map(t -> {
-                    // Luăm datele din Catalog (care are cache, deci e rapid)
                     MatchDTO match = catalogService.getMatchSecurely(t.getMatchId());
                     SeatDTO seat = catalogService.getSeatSecurely(t.getSeatId());
 
@@ -259,6 +258,13 @@ public class TicketServiceImpl implements TicketService {
         return response;
     }
 
+    @Override
+    public List<Long> getOccupiedSeatsInList(Long matchId, List<Long> seatIds) {
+        // Considerăm locurile PENDING ca fiind ocupate doar dacă au fost create în ultimele 10 minute
+        LocalDateTime timeout = LocalDateTime.now().minusMinutes(10);
+
+        return ticketRepository.findOccupiedSeatIdsInList(matchId, seatIds, timeout);
+    }
     // helper
     private void validateLimits(TicketRequestDTO request) {
         int requestedCount = request.getSeatIds().size();
