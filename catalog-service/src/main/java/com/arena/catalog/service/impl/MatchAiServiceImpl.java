@@ -14,16 +14,17 @@ public class MatchAiServiceImpl implements MatchAiService {
         this.chatClient = builder.build();
     }
 
-
     @Override
     @Cacheable(value = "ai_trivia", key = "#opponentName")
     public String getFunFacts(String opponentName) {
-        // Fixăm România ca gazdă în prompt
         String prompt = String.format(
-                "Ești un asistent virtual pentru Arena Sport. " +
-                        "Oferă-mi 3 informații scurte, captivante despre istoricul meciurilor de fotbal dintre " +
-                        "echipa națională a României și %s. Te poți referi la meciuri celebre sau jucători legendari. " +
-                        "Folosește un ton energic și răspunde în limba română.",
+                "Ești un istoric sportiv concis. Oferă exact 3 curiozități scurte despre meciurile dintre România și %s. " +
+                        "Reguli stricte: " +
+                        "1. Nu folosi introduceri (ex: 'Salutare fan...') sau încheieri. " +
+                        "2. Fiecare informație trebuie să aibă maximum 15 cuvinte. " +
+                        "3. Folosește un format de listă cu bulinuțe. " +
+                        "4. Tonul să fie informativ, nu excesiv de entuziasmat. " +
+                        "5. Răspunde în limba română.",
                 opponentName
         );
 
@@ -33,9 +34,7 @@ public class MatchAiServiceImpl implements MatchAiService {
                     .call()
                     .content();
         } catch (Exception e) {
-            System.err.println("ERROARE AI: " + e.getMessage());
-            e.printStackTrace();
-            return "Momentan nu am putut prelua curiozități pentru meciul cu " + opponentName + ".";
+            return "Informații indisponibile momentan pentru meciul cu " + opponentName + ".";
         }
     }
 }
