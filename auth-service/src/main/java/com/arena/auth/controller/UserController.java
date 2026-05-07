@@ -15,9 +15,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.arena.auth.config.JwtUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
 
 @RestController
 @RequestMapping("/api/users")
@@ -26,7 +28,7 @@ public class UserController {
 
     private final UserService userService;
     private final RefreshTokenService refreshTokenService;
-
+    private final JwtUtils jwtUtils;
     @PostMapping("/register")
     public ResponseEntity<UserResponseDTO> register(@Valid @RequestBody RegisterRequestDTO registerDTO) {
         UserResponseDTO createdUser = userService.registerUser(registerDTO);
@@ -73,6 +75,16 @@ public class UserController {
         return userService.getUserById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+    @GetMapping("/profile")
+    public ResponseEntity<UserResponseDTO> getMyProfile(@RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.substring(7);
+
+        // 2. Folosim utilitarul tău pentru a lua username-ul (subject-ul)
+        String username = jwtUtils.getClaimsFromToken(token).getSubject();
+
+        System.out.println("Extras din token: " + username);
+        return ResponseEntity.ok(userService.getMyProfile(username));
     }
 
     @PutMapping("/{id}/loyalty-points")

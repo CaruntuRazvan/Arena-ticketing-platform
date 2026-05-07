@@ -22,4 +22,5 @@ public interface UserService {
     void logout(String token);
     LoginResponseDTO refreshToken(TokenRefreshRequestDTO request);
     List<String> getAllEmails();
+    UserResponseDTO getMyProfile(String username);
 }

@@ -263,6 +263,13 @@ public class UserServiceImpl implements UserService {
             }
         }
     }
+    @Override
+    public UserResponseDTO getMyProfile(String username) {
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new AuthException("Utilizator negăsit!"));
+        return mapToDTO(user);
+    }
     private UserResponseDTO mapToDTO(User user) {
         return new UserResponseDTO(
                 user.getId(),
