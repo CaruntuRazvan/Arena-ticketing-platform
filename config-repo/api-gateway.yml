@@ -94,6 +94,18 @@ spring:
                 redis-rate-limiter.burstCapacity: 20
                 key-resolver: "#{@userKeyResolver}"
 
+        - id: ticketing-availability
+          uri: lb://TICKETING-SERVICE
+          predicates:
+            - Path=/api/ticketing/occupied-seats
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 50  # Limită mare, fiind interogare frecventă
+                redis-rate-limiter.burstCapacity: 100
+                key-resolver: "#{@userKeyResolver}"
+
+
         - id: notification-service
           uri: lb://NOTIFICATION-SERVICE
           predicates:
