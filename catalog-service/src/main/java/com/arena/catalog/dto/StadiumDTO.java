@@ -1,11 +1,12 @@
 package com.arena.catalog.dto;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-@Getter @Setter
+@Data // Include Getter, Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class StadiumDTO {
 
     private Long id;

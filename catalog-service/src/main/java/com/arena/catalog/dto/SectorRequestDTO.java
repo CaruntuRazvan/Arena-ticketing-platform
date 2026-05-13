@@ -1,9 +1,13 @@
 package com.arena.catalog.dto;
 
 import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class SectorRequestDTO {
 
     @NotBlank(message = "Numele sectorului este obligatoriu (ex: Peluza Nord, Tribuna 1)")

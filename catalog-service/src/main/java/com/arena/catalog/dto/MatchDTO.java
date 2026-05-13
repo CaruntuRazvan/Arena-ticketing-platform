@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class MatchDTO {
     private Long id;
     private String opponentName;
+    private String matchImageUrl;
     private LocalDateTime matchDate;
     private String stadiumName;
     private MatchStatus status;
