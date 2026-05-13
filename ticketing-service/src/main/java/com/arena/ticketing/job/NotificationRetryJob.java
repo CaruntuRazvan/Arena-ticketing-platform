@@ -15,7 +15,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -27,34 +30,48 @@ public class NotificationRetryJob {
     private final AuthClient authClient;
     private final CatalogClient catalogClient;
 
-    // Rulează la fiecare 60 secunde
     @Scheduled(fixedDelay = 60000)
     public void retrySendingMails() {
-        // Căutăm biletele confirmate care au mail_sent = false sau null
         List<Ticket> pendingTickets = ticketRepository.findByStatusAndMailSentFalse(TicketStatus.CONFIRMED);
 
         if (pendingTickets.isEmpty()) {
             return;
         }
 
-        log.info("S-au găsit {} bilete cu mail netrimis. Încercăm retrimiterea...", pendingTickets.size());
+        Map<Long, List<Ticket>> ticketsByUser = pendingTickets.stream()
+                .collect(Collectors.groupingBy(Ticket::getUserId));
 
-        for (Ticket ticket : pendingTickets) {
+        log.info("S-au găsit {} bilete netrimise. Încercăm gruparea pe {} utilizatori...",
+                pendingTickets.size(), ticketsByUser.size());
+
+        for (Map.Entry<Long, List<Ticket>> entry : ticketsByUser.entrySet()) {
+            Long userId = entry.getKey();
+            List<Ticket> userTickets = entry.getValue();
+
             try {
-                UserDTO user = authClient.getUserById(ticket.getUserId());
-                MatchDTO match = catalogClient.getMatchById(ticket.getMatchId());
+                UserDTO user = authClient.getUserById(userId);
+                List<TicketResponseDTO> dtos = new ArrayList<>();
 
-                // Mapăm biletul la DTO (folosește metoda ta de mapare)
-                TicketResponseDTO dto = mapToResponseDTO(ticket, match);
+                // Colectăm toate DTO-urile pentru acest utilizator
+                for (Ticket ticket : userTickets) {
+                    MatchDTO match = catalogClient.getMatchById(ticket.getMatchId());
+                    dtos.add(mapToResponseDTO(ticket, match));
+                }
 
-                notificationClient.sendTicketNotification(dto, user.getEmail());
+                // Trimitem lista (Notification Service trebuie să accepte List acum)
+                notificationClient.sendTicketNotification(dtos, user.getEmail());
 
-                ticket.setMailSent(true);
-                ticketRepository.save(ticket);
-                log.info("Mail trimis cu succes în fundal pentru biletul: {}", ticket.getId());
+                // Marcăm și salvăm tot grupul ca fiind trimis
+                for (Ticket ticket : userTickets) {
+                    ticket.setMailSent(true);
+                }
+                ticketRepository.saveAll(userTickets);
+
+                log.info("Mail trimis cu succes pentru user: {}, bilete: {}",
+                        userId, userTickets.size());
 
             } catch (Exception e) {
-                log.error("Notification Service este încă indisponibil pentru biletul {}. Reîncercăm data viitoare.", ticket.getId());
+                log.error("Notification Service indisponibil pentru userul {}. Reîncercăm...", userId);
             }
         }
     }

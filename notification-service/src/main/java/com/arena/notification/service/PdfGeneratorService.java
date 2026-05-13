@@ -47,13 +47,9 @@ public class PdfGeneratorService {
             byte[] qrBytes = QrCodeGenerator.generateQrCodeImage(ticket.getTicketCode());
             Image qrImage = Image.getInstance(qrBytes);
             qrImage.setAlignment(Element.ALIGN_CENTER);
-            qrImage.scaleToFit(110, 110); // Să arate bine pe A6
+            qrImage.scaleToFit(160, 160); // Să arate bine pe A6
             document.add(qrImage);
 
-            // Codul biletului text sub imagine
-            Paragraph footer = new Paragraph(ticket.getTicketCode(), codeFont);
-            footer.setAlignment(Element.ALIGN_CENTER);
-            document.add(footer);
 
             document.close();
         } catch (Exception e) {

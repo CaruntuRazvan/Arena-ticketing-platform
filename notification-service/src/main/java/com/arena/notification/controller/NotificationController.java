@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -22,10 +23,21 @@ public class NotificationController {
     private final AuthClient authClient;
 
     @PostMapping("/ticket")
-    public void sendTicketNotification(@RequestBody TicketResponseDTO ticket, @RequestParam String email) throws Exception {
-        byte[] pdf = pdfGeneratorService.generateTicketPdf(ticket);
+    public void sendTicketNotification(@RequestBody List<TicketResponseDTO> tickets, @RequestParam String email) throws Exception {
+        List<byte[]> pdfs = new ArrayList<>();
+        List<String> fileNames = new ArrayList<>();
 
-        emailService.sendTicketWithAttachment(email, "Biletul tău: " + ticket.getOpponentName(), pdf, "bilet.pdf");
+        // Acum "tickets" este recunoscut pentru că este definit ca parametru mai sus
+        for (TicketResponseDTO t : tickets) {
+            byte[] pdf = pdfGeneratorService.generateTicketPdf(t);
+            pdfs.add(pdf);
+
+            // Generăm un nume de fișier curat
+            String opponent = t.getOpponentName().replaceAll("[^a-zA-Z0-9]", "_");
+            fileNames.add("bilet_" + opponent + "_" + t.getId() + ".pdf");
+        }
+
+        emailService.sendTicketWithAttachment(email, "Biletele tale pentru meci: ", pdfs, fileNames);
     }
 
     @PostMapping("/send-email")
