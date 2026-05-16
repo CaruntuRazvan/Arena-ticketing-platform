@@ -10,6 +10,7 @@ import java.util.List;
 public interface StadiumService {
     StadiumDTO createStadium(StadiumDTO stadiumDTO);
     List<StadiumDTO> getAllStadiums();
+    List<SectorDTO> getSectorsByStadiumId(Long stadiumId);
     SectorDTO addSector(SectorRequestDTO dto);
     void deleteSector(Long sectorId);
 }

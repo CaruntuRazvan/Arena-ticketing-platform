@@ -53,6 +53,27 @@ public class StadiumServiceImpl implements StadiumService {
     }
 
     @Override
+    public List<SectorDTO> getSectorsByStadiumId(Long stadiumId) {
+        // Verificăm dacă stadionul există (opțional, dar recomandat)
+        if (!stadiumRepository.existsById(stadiumId)) {
+            throw new CatalogException("Stadionul cu ID-ul " + stadiumId + " nu a fost găsit!");
+        }
+
+        // Luăm sectoarele și le mapăm la SectorDTO
+        return sectorRepository.findByStadiumId(stadiumId).stream()
+                .map(sector -> {
+                    SectorDTO dto = new SectorDTO();
+                    dto.setId(sector.getId());
+                    dto.setName(sector.getName());
+                    dto.setStadiumId(stadiumId);
+                    // Calculăm numărul de locuri dacă ai nevoie de el în UI
+                    dto.setTotalSeats(sector.getSeats() != null ? sector.getSeats().size() : 0);
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional
     public SectorDTO addSector(SectorRequestDTO dto) {
         Stadium stadium = stadiumRepository.findById(dto.getStadiumId())

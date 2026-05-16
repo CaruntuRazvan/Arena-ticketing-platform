@@ -28,6 +28,11 @@ public class StadiumController {
         return ResponseEntity.ok(stadiumService.getAllStadiums());
     }
 
+    @GetMapping("/{stadiumId}/sectors")
+    public ResponseEntity<List<SectorDTO>> getSectorsByStadium(@PathVariable Long stadiumId) {
+        return ResponseEntity.ok(stadiumService.getSectorsByStadiumId(stadiumId));
+    }
+
     @PostMapping
     public ResponseEntity<StadiumDTO> createStadium(@Valid @RequestBody StadiumDTO stadiumDTO) {
         return ResponseEntity.ok(stadiumService.createStadium(stadiumDTO));
