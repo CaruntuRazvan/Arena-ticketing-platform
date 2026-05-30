@@ -6,6 +6,7 @@ import com.arena.auth.dto.*;
 import com.arena.auth.exception.AuthException;
 import com.arena.auth.model.User;
 import com.arena.auth.model.UserProfile;
+import com.arena.auth.repository.UserProfileRepository;
 import com.arena.auth.repository.UserRepository;
 import com.arena.auth.service.RefreshTokenService;
 import com.arena.auth.service.impl.UserServiceImpl;
@@ -45,6 +46,7 @@ class UserServiceTest {
     @Mock private NotificationClient notificationClient;
     @Mock private RefreshTokenService refreshTokenService;
     @Mock private JwtUtils jwtUtils;
+    @Mock private UserProfileRepository userProfileRepository;
 
     @InjectMocks
     private UserServiceImpl userService;
