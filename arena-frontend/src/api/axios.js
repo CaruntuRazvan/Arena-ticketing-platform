@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://localhost:8080/api', // portul API GATEWAY
+    //baseURL: 'http://localhost:8080/api', // portul API GATEWAY
+    baseURL: 'https://localhost/api',
     headers: {
         'Content-Type': 'application/json'
     }
@@ -15,5 +16,19 @@ api.interceptors.request.use((config) => {
     }
     return config;
 });
+
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response && error.response.status === 401) {
+            // Aici afișăm mesajul pentru utilizator
+            alert("Sesiunea ta a expirat! Te rugăm să te autentifici din nou.");
+
+            localStorage.clear();
+            window.location.href = '/login';
+        }
+        return Promise.reject(error);
+    }
+);
 
 export default api;
