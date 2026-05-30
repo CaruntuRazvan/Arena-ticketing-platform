@@ -4,7 +4,7 @@ server:
 spring:
   data:
     redis:
-      host: localhost
+      host: redis-cache
       port: 6379
       database: 0
   cloud:
@@ -59,7 +59,7 @@ spring:
           uri: lb://CATALOG-SERVICE
           predicates:
             - Path=/api/catalog/stadiums/**, /api/catalog/matches/**
-            - Method=POST, PATCH, DELETE
+            - Method=POST, PATCH, DELETE, PUT
           filters:
             - AuthenticationFilter
             - name: RequestRateLimiter
@@ -85,7 +85,7 @@ spring:
         - id: ticketing-admin
           uri: lb://TICKETING-SERVICE
           predicates:
-            - Path=/api/ticketing/validate/**, /api/ticketing/match/**, /api/ticketing
+            - Path=/api/ticketing/validate/**, /api/ticketing/match/**, /api/ticketing, /api/ticketing/analytics/**
           filters:
             - AuthenticationFilter
             - name: RequestRateLimiter
@@ -115,7 +115,19 @@ app:
   jwt:
     secret: ${ARENA_JWT_SECRET}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: refresh, health, info, prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
 eureka:
+  instance:
+    prefer-ip-address: true
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: http://discovery-server:8761/eureka/

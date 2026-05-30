@@ -10,11 +10,11 @@ spring:
       time-to-live: 600000
   data:
     redis:
-      host: localhost
+      host: redis-cache
       port: 6379
       database: 3
   datasource:
-    url: jdbc:postgresql://localhost:5432/arena_ticketing_db
+    url: jdbc:postgresql://postgres-db:5432/arena_ticketing_db
     username: ${DB_USER}
     password: ${DB_PASSWORD}
   jpa:
@@ -26,9 +26,11 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 eureka:
+  instance:
+    prefer-ip-address: true
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: http://discovery-server:8761/eureka/
 
 resilience4j:
   circuitbreaker:
@@ -53,3 +55,14 @@ resilience4j:
       notificationRetry:
         maxAttempts: 3 # Încearcă de 3 ori înainte să renunțe
         waitDuration: 2s # Așteaptă 2 secunde între încercări
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: refresh, health, info, prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true

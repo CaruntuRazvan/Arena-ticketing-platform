@@ -5,16 +5,19 @@ spring:
   application:
     name: config-server
   profiles:
-    active: native  # Folosim modul "native" pentru a citi de pe disc local
+    active: native
   cloud:
     config:
       server:
+        git:
+          enabled: false
         native:
-          # AICI pui calea către folderul creat la Pasul 3
-          search-locations: file:///D:/Facultate/master/an1/sem2/AWBD/Arena-Ticketing-System/Arena-ticketing-platform/config-repo
-
+          # Aici folosim doar calea din container (Docker)
+          search-locations: file:///app/config
 
 eureka:
+  instance:
+    prefer-ip-address: true
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: http://discovery-server:8761/eureka/
