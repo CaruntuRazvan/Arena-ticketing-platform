@@ -44,7 +44,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             return redisTemplate.hasKey("blacklist:" + token)
                     .flatMap(isBlacklisted -> {
                         //System.out.println("Gateway verifică Redis. Găsit? " + isBlacklisted);
-
+                        //System.out.println("DEBUG GATEWAY: Token-ul este in blacklist? " + isBlacklisted);
                         if (Boolean.TRUE.equals(isBlacklisted)) {
                             return stopWithStatus(exchange, HttpStatus.UNAUTHORIZED);
                         }
@@ -60,7 +60,13 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                             String path = exchange.getRequest().getPath().toString();
                             String method = exchange.getRequest().getMethod().name();
 
-                            if (path.contains("/admin") || !method.equals("GET")) {
+                            if (path.endsWith("/logout")) {
+                                return chain.filter(exchange);
+                            }
+                            boolean isAdminPath = path.contains("/admin") || path.contains("/analytics");
+                            boolean isUserTicketingAction = path.contains("/ticketing/buy") || path.contains("/ticketing/confirm");
+
+                            if (isAdminPath || (!method.equals("GET") && !isUserTicketingAction)) {
                                 String role = claims.get("role", String.class);
                                 if (role == null || !role.equalsIgnoreCase("ADMIN")) {
                                     return stopWithStatus(exchange, HttpStatus.FORBIDDEN);
@@ -68,6 +74,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                             }
                             return chain.filter(exchange);
                         } catch (Exception e) {
+                            System.out.println("EROARE JWT GATEWAY: " + e.getMessage());
                             return stopWithStatus(exchange, HttpStatus.UNAUTHORIZED);
                         }
                     });

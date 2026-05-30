@@ -78,6 +78,11 @@ public class TicketController {
 
         return ResponseEntity.ok(ticketService.getOccupiedSeatsInList(matchId, seatIds));
     }
+
+    @GetMapping("/analytics/match/{matchId}")
+    public ResponseEntity<MatchRevenueReportDTO> getMatchAnalytics(@PathVariable Long matchId) {
+        return ResponseEntity.ok(ticketService.getDetailedRevenueReport(matchId));
+    }
     /* NOTĂ: Metoda de download PDF și Revenue Report sunt momentan comentate
        până când implementăm PDF Service și logica de agregare cross-service.
     */

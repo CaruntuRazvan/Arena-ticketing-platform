@@ -21,12 +21,11 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     boolean existsByMatchIdAndSeatId(Long matchId, Long seatId);
     /*
     List<Ticket> findByUserId(Long userId);
-
-    List<Ticket> findByMatchId(Long matchId);
     */
     Page<Ticket> findByUserId(Long userId, Pageable pageable);
     Page<Ticket> findByMatchId(Long matchId, Pageable pageable);
-
+    // for revenue statistics
+    List<Ticket> findByMatchId(Long matchId);
     @Query("SELECT t.seatId FROM Ticket t WHERE t.matchId = :matchId")
     List<Long> findOccupiedSeatIdsByMatch(@Param("matchId") Long matchId);
 
@@ -48,7 +47,6 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
             @Param("timeout") LocalDateTime timeout
     );
 
-    // MODIFICAT: Am scos punctele (t.match.id -> t.matchId)
     @Query("SELECT COUNT(t) > 0 FROM Ticket t WHERE t.matchId = :matchId AND t.seatId = :seatId " +
             "AND (t.status = 'CONFIRMED' OR (t.status = 'PENDING' AND t.createdAt > :timeout))")
     boolean isSeatOccupied(
@@ -63,4 +61,15 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     @Transactional
     @Query("DELETE FROM Ticket t WHERE (t.status = 'CANCELLED') OR (t.status = 'PENDING' AND t.createdAt < :threshold)")
     void deleteExpiredOrCancelledTickets(@Param("threshold") LocalDateTime threshold);
+
+
+    @Query("SELECT DISTINCT t.matchId FROM Ticket t WHERE t.status = com.arena.ticketing.model.TicketStatus.CONFIRMED AND t.used = false")
+    List<Long> findDistinctMatchIdsWithConfirmedTickets();
+
+    @Modifying
+    @Query("UPDATE Ticket t SET t.status = com.arena.ticketing.model.TicketStatus.CANCELLED " +
+            "WHERE t.status = com.arena.ticketing.model.TicketStatus.CONFIRMED " +
+            "AND t.used = false AND t.matchId = :matchId")
+    void expireUnusedTicketsForMatch(@Param("matchId") Long matchId);
+
 }

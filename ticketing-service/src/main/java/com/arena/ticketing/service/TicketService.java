@@ -19,5 +19,6 @@ public interface TicketService {
     Page<TicketResponseDTO> getTicketsByMatch(Long matchId, Pageable pageable);
     Page<TicketListDTO> getTicketsByUserId(Long userId, Pageable pageable);
     void validateTicket(String ticketCode);
+    MatchRevenueReportDTO getDetailedRevenueReport(Long matchId);
     List<Long> getOccupiedSeatsInList(Long matchId, List<Long> seatIds);
 }

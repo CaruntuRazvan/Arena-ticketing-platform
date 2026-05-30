@@ -7,6 +7,8 @@ import com.arena.catalog.model.MatchStatus;
 import com.arena.catalog.service.MatchService;
 import com.arena.catalog.model.MatchSectorPrice;
 
+import com.arena.catalog.service.SeatService;
+import com.arena.catalog.util.SerializablePage;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -27,6 +29,7 @@ import java.time.LocalDateTime;
 public class MatchController {
 
     private final MatchService matchService;
+    private final SeatService seatService;
     /*
     @GetMapping
     public ResponseEntity<List<MatchDTO>> getAllMatches() {
@@ -44,11 +47,23 @@ public class MatchController {
             @PageableDefault(size = 10, sort = "matchDate", direction = Sort.Direction.ASC) Pageable pageable) {
         return ResponseEntity.ok(matchService.getAllMatchesDTO(pageable));
     }
-
+    /*
     @GetMapping("/upcoming")
     public ResponseEntity<Page<MatchDTO>> getUpcoming(
             @PageableDefault(size = 5, sort = "matchDate", direction = Sort.Direction.ASC) Pageable pageable) {
         return ResponseEntity.ok(matchService.getUpcomingMatchesDTO(pageable));
+    }
+    */
+    @GetMapping("/upcoming")
+    public ResponseEntity<Page<MatchDTO>> getUpcoming(
+            @PageableDefault(size = 5, sort = "matchDate", direction = Sort.Direction.ASC) Pageable pageable) {
+
+        // 1. Apelăm serviciul care returnează SerializablePage (din Cache sau DB)
+        SerializablePage<MatchDTO> serializablePage = matchService.getUpcomingMatchesDTO(pageable);
+
+        // 2. Convertim înapoi la PageImpl folosind metoda toPage() pe care ai definit-o
+        // Astfel, Jackson va genera un JSON pe care React îl înțelege nativ
+        return ResponseEntity.ok(serializablePage.toPage());
     }
 
     @PostMapping
@@ -62,6 +77,12 @@ public class MatchController {
         return ResponseEntity.ok("Prețurile au fost setate cu succes!");
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<MatchDTO> updateMatch(
+            @PathVariable Long id,
+            @Valid @RequestBody MatchRequestDTO dto) {
+        return ResponseEntity.ok(matchService.updateMatch(id, dto));
+    }
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<String> updateStatus(
@@ -92,5 +113,19 @@ public class MatchController {
     @GetMapping("/{matchId}/prices/{sectorId}")
     public ResponseEntity<Double> getPrice(@PathVariable Long matchId, @PathVariable Long sectorId) {
         return ResponseEntity.ok(matchService.getSectorPrice(matchId, sectorId));
+    }
+
+    @GetMapping("/{matchId}/sectors/{sectorName}")
+    public ResponseEntity<SectorDTO> getSectorInfo(
+            @PathVariable Long matchId,
+            @PathVariable String sectorName) {
+        return ResponseEntity.ok(matchService.getSectorDetailsByName(matchId, sectorName));
+    }
+
+    @GetMapping("/{matchId}/sectors/{sectorId}/seats")
+    public ResponseEntity<List<SeatDTO>> getSeatsWithStatus(
+            @PathVariable Long matchId,
+            @PathVariable Long sectorId) {
+        return ResponseEntity.ok(seatService.getSeatsBySector(matchId, sectorId));
     }
 }

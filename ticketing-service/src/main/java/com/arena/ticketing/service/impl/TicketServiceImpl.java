@@ -131,10 +131,8 @@ public class TicketServiceImpl implements TicketService {
             MatchDTO match = catalogService.getMatchSecurely(ticket.getMatchId());
             TicketResponseDTO dto = mapToResponseDTO(ticket, match, null);
             confirmedDTOs.add(dto);
-
-            notificationClient.sendTicketNotification(dto, user.getEmail());
         }
-
+        notificationClient.sendTicketNotification(confirmedDTOs, user.getEmail());
         authClient.updatePoints(userId, tickets.size());
         return confirmedDTOs;
     }
@@ -179,10 +177,16 @@ public class TicketServiceImpl implements TicketService {
                     MatchDTO match = catalogService.getMatchSecurely(t.getMatchId());
                     SeatDTO seat = catalogService.getSeatSecurely(t.getSeatId());
 
+                    // Calculăm dinamic dacă meciul a trecut deja de 3 ore
+                    boolean matchHasPassed = match.getMatchDate().plusHours(3).isBefore(LocalDateTime.now());
+
+                    // Biletul este considerat indisponibil/inactiv dacă a fost deja folosit SAU dacă meciul a trecut
+                    boolean isUsedOrExpired = t.isUsed() || matchHasPassed;
+
                     return new TicketListDTO(
                             t.getId(), t.getTicketCode(), match.getOpponentName(),
                             "Sector " + seat.getSectorId(), seat.getRowNumber(), seat.getSeatNumber(),
-                            t.getFinalPrice(), t.isUsed()
+                            t.getFinalPrice(), isUsedOrExpired // 👈 Trimitem true dacă e folosit sau expirat
                     );
                 });
     }
@@ -225,13 +229,37 @@ public class TicketServiceImpl implements TicketService {
         ticketRepository.save(ticket);
     }
 
-    @Scheduled(cron = "0 0 * * * *")
+    @Scheduled(cron = "0 0 * * * *") // Rulam o data pe ora pentru curatenia meciurilor trecute
     @Transactional
     public void performDatabaseHousekeeping() {
-        ticketRepository.deleteExpiredOrCancelledTickets(LocalDateTime.now().minusHours(24));
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime threshold = now.minusMinutes(15);
+
+        try {
+            // 1. Logica ta existenta pentru stergerea rezervarilor temporare expirate (PENDING)
+            ticketRepository.deleteExpiredOrCancelledTickets(threshold);
+
+            // 2. LOGICA NOUĂ: Expirarea biletelor nefolosite de la meciuri trecute
+            List<Long> activeMatchIds = ticketRepository.findDistinctMatchIdsWithConfirmedTickets();
+
+            for (Long matchId : activeMatchIds) {
+                try {
+                    MatchDTO match = catalogService.getMatchSecurely(matchId);
+                    // Daca data meciului + 3 ore este in trecut
+                    if (match.getMatchDate().plusHours(3).isBefore(now)) {
+                        ticketRepository.expireUnusedTicketsForMatch(matchId);
+                        System.out.println(">>> HOUSEKEEPING: Biletele nefolosite pentru meciul #" + matchId + " au fost marcate ca expirate.");
+                    }
+                } catch (Exception e) {
+                    System.out.println(">>> HOUSEKEEPING WARN: Nu s-au putut procesa biletele pentru meciul #" + matchId);
+                }
+            }
+        } catch (Exception e) {
+            System.out.println(">>> HOUSEKEEPING ERROR: " + e.getMessage());
+        }
     }
 
-    // 1. FALLBACK REPARAT (Semnătura coincide cu metoda originală)
+    // 1. FALLBACK
     public List<TicketResponseDTO> fallbackForNotification(List<Long> ticketIds, Throwable t) {
         if (t instanceof TicketException) {
             throw (TicketException) t;
@@ -244,7 +272,7 @@ public class TicketServiceImpl implements TicketService {
         List<TicketResponseDTO> response = new ArrayList<>();
 
         for (Ticket ticket : tickets) {
-            ticket.setStatus(TicketStatus.CONFIRMED); //confirmam desi nu s a trimis mail
+            ticket.setStatus(TicketStatus.CONFIRMED);
             ticket.setPurchaseDate(LocalDateTime.now());
             ticket.setMailSent(false); //false in caz de eroare
             ticketRepository.save(ticket);
@@ -274,9 +302,60 @@ public class TicketServiceImpl implements TicketService {
         if (alreadyOwned + requestedCount > 10) throw new TicketException("Limita de 10 bilete depasita!");
     }
 
+    @Override
+    public MatchRevenueReportDTO getDetailedRevenueReport(Long matchId) {
+        com.arena.ticketing.dto.external.MatchDTO match = catalogService.getMatchSecurely(matchId);
+
+        // Extragem doar biletele CONFIRMED
+        java.util.List<com.arena.ticketing.model.Ticket> confirmedTickets = ticketRepository.findByMatchId(matchId).stream()
+                .filter(t -> com.arena.ticketing.model.TicketStatus.CONFIRMED.equals(t.getStatus()))
+                .collect(java.util.stream.Collectors.toList());
+
+        // Calculam sumele si volumele globale la nivel de meci
+        double totalRevenue = confirmedTickets.stream().mapToDouble(com.arena.ticketing.model.Ticket::getFinalPrice).sum();
+        long totalTicketsSold = confirmedTickets.size();
+
+        java.util.Map<java.lang.Long, java.util.List<com.arena.ticketing.model.Ticket>> ticketsBySectorId = confirmedTickets.stream()
+                .collect(java.util.stream.Collectors.groupingBy(t -> {
+                    com.arena.ticketing.dto.external.SeatDTO seat = catalogService.getSeatSecurely(t.getSeatId());
+                    return seat.getSectorId(); // Grupăm nativ după ID-ul numeric al sectorului
+                }));
+
+        java.util.List<MatchRevenueReportDTO.SectorRevenueDTO> sectorsAnalytics = new java.util.ArrayList<>();
+
+        for (java.util.Map.Entry<java.lang.Long, java.util.List<com.arena.ticketing.model.Ticket>> entry : ticketsBySectorId.entrySet()) {
+            java.lang.Long sectorId = entry.getKey();
+            java.util.List<com.arena.ticketing.model.Ticket> sectorTickets = entry.getValue();
+
+            long ticketsSold = sectorTickets.size();
+            double sectorRevenue = sectorTickets.stream().mapToDouble(com.arena.ticketing.model.Ticket::getFinalPrice).sum();
+
+            // Construim DTO-ul secundar apelând constructorul în ordinea exactă: (Long sectorId, Long ticketsSold, Double revenue)
+            MatchRevenueReportDTO.SectorRevenueDTO sectorDTO = new MatchRevenueReportDTO.SectorRevenueDTO(
+                    sectorId,
+                    ticketsSold,
+                    sectorRevenue
+            );
+            sectorsAnalytics.add(sectorDTO);
+        }
+
+        // 6. Returnăm raportul agreat gata formatat pentru a fi trimis ca JSON
+        return new MatchRevenueReportDTO(
+                matchId,
+                match.getOpponentName(),
+                totalRevenue,
+                totalTicketsSold,
+                sectorsAnalytics
+        );
+    }
+
     private TicketResponseDTO mapToResponseDTO(Ticket t, MatchDTO match, SeatDTO seat) {
         if (seat == null) seat = catalogService.getSeatSecurely(t.getSeatId());
+        String computedStatus = t.getStatus().name();
 
+        if ("CONFIRMED".equals(computedStatus) && !t.isUsed() && match.getMatchDate().plusHours(3).isBefore(LocalDateTime.now())) {
+            computedStatus = "CANCELLED"; // Marcam ca expirat daca meciul a trecut de 3 ore si biletul nu a fost folosit
+        }
         return new TicketResponseDTO(
                 t.getId(),
                 t.getTicketCode(),
@@ -286,7 +365,7 @@ public class TicketServiceImpl implements TicketService {
                 seat.getRowNumber(),
                 seat.getSeatNumber(),
                 t.getFinalPrice(),
-                t.getStatus().name(),
+                computedStatus,
                 t.getCreatedAt()
         );
     }

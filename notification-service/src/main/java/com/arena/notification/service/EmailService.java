@@ -25,15 +25,18 @@ public class EmailService {
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     private final JavaMailSender mailSender;
 
-    public void sendTicketWithAttachment(String toEmail, String subject, byte[] pdfBytes, String fileName) throws Exception {
+    public void sendTicketWithAttachment(String toEmail, String subject, List<byte[]> allPdfBytes, List<String> fileNames) throws Exception {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true);
 
             helper.setTo(toEmail);
             helper.setSubject(subject);
-            helper.setText("<p>Salutare!</p><p>Atașat găsești biletul tău pentru meci. Ne vedem pe stadion!</p>", true);
-            helper.addAttachment(fileName, new ByteArrayResource(pdfBytes));
+            helper.setText("<p>Salutare!</p><p>Atașat găsești biletul/biletele tale pentru meci. Ne vedem pe stadion!</p>", true);
+            // Adăugăm fiecare bilet ca atasament separat in același mail
+            for (int i = 0; i < allPdfBytes.size(); i++) {
+                helper.addAttachment(fileNames.get(i), new ByteArrayResource(allPdfBytes.get(i)));
+            }
 
             mailSender.send(message);
         } catch (MessagingException e) {

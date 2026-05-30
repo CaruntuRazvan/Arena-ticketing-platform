@@ -6,6 +6,7 @@ import com.arena.auth.model.RefreshToken;
 import com.arena.auth.model.User;
 import com.arena.auth.model.UserProfile;
 import com.arena.auth.repository.RefreshTokenRepository;
+import com.arena.auth.repository.UserProfileRepository;
 import com.arena.auth.repository.UserRepository;
 import com.arena.auth.service.RefreshTokenService;
 import com.arena.auth.service.UserService;
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redisTemplate;
     private final NotificationClient notificationClient;
@@ -221,11 +223,26 @@ public class UserServiceImpl implements UserService {
     public List<String> getAllEmails() {
         return userRepository.findAllEmails();
     }
-    @Override
-    public void deleteUser(Long id) {
-        userRepository.deleteById(id);
-    }
 
+    @Override
+    @Transactional
+    public void deleteUser(Long id) {
+        // 1. Verificăm dacă user-ul există în baza de date
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new AuthException("Utilizatorul cu ID-ul " + id + " nu există."));
+
+        // 2. Ștergem token-urile de refresh active asociate acestui utilizator
+        refreshTokenService.deleteByUserId(id);
+        // Notă: Dacă în serviciul tău metoda se numește altfel (ex: deleteByUser(user)), folosește varianta ta reală.
+
+        // 3. Ștergem profilul utilizatorului (dacă este entitate separată în proiectul tău)
+        if (user.getProfile() != null) {
+            userProfileRepository.delete(user.getProfile());
+        }
+
+        // 4. În final, ștergem utilizatorul principal
+        userRepository.delete(user);
+    }
     @Override
     @Transactional
     public void updateLoyaltyPoints(Long userId, int points) {
