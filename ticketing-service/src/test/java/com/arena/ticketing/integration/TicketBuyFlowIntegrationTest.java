@@ -19,6 +19,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 
@@ -64,6 +66,8 @@ class TicketBuyFlowIntegrationTest {
         // =========================================================================
         // CONFIGURĂM WIREMOCK STUBS (HTTP LAYER)
         // =========================================================================
+        String futureDate = LocalDateTime.now().plusMonths(6)
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
         authServiceMock.stubFor(get(urlEqualTo("/api/users/1"))
                 .willReturn(aResponse()
                         .withStatus(200)
@@ -74,7 +78,12 @@ class TicketBuyFlowIntegrationTest {
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{\"id\":10,\"opponentName\":\"Dinamo\",\"matchDate\":\"2026-05-20T21:00:00\",\"stadiumName\":\"Arena Nationala\"}")));
+                        .withBody("{\"id\":10,\"opponentName\":\"Dinamo\"," +
+                                "\"matchDate\":\"" + futureDate + "\"," +
+                                "\"stadiumName\":\"Arena Nationala\"," +
+                                "\"status\":\"SCHEDULED\"}")));
+
+                        //.withBody("{\"id\":10,\"opponentName\":\"Dinamo\",\"matchDate\":\"2026-05-20T21:00:00\",\"stadiumName\":\"Arena Nationala\"}")));
 
         catalogServiceMock.stubFor(get(urlEqualTo("/api/catalog/seats/100"))
                 .willReturn(aResponse()
