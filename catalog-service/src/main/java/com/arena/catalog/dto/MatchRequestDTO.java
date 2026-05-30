@@ -21,4 +21,6 @@ public class MatchRequestDTO {
 
     @NotNull(message = "ID-ul stadionului este obligatoriu")
     private Long stadiumId;
+
+    private String matchImageUrl;
 }

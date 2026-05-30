@@ -3,6 +3,7 @@ package com.arena.catalog.service;
 import com.arena.catalog.dto.*;
 import com.arena.catalog.model.Match;
 import com.arena.catalog.model.MatchStatus;
+import com.arena.catalog.util.SerializablePage;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,12 +19,14 @@ public interface MatchService {
     List<MatchDTO> getUpcomingMatchesDTO();
     */
     Page<MatchDTO> getAllMatchesDTO(Pageable pageable);
-    Page<MatchDTO> getUpcomingMatchesDTO(Pageable pageable);
-
+    //Page<MatchDTO> getUpcomingMatchesDTO(Pageable pageable);
+    SerializablePage<MatchDTO> getUpcomingMatchesDTO(Pageable pageable);
     Double getPriceForSector(Long matchId, Long sectorId);
     void updateMatchStatus(Long matchId, MatchStatus newStatus);
     void deleteMatch(Long id);
     MatchDTO getMatchById(Long id);
     Double getSectorPrice(Long matchId, Long sectorId);
     void publishMatch(Long matchId);
+    SectorDTO getSectorDetailsByName(Long matchId, String sectorName);
+    MatchDTO updateMatch(Long id, MatchRequestDTO dto);
 }

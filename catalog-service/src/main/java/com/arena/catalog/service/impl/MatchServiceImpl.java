@@ -6,6 +6,7 @@ import com.arena.catalog.dto.*;
 import com.arena.catalog.repository.*;
 import com.arena.catalog.service.MatchService;
 import com.arena.catalog.exception.CatalogException;
+import com.arena.catalog.util.SerializablePage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -52,9 +53,31 @@ public class MatchServiceImpl implements MatchService {
         match.setMatchDate(dto.getMatchDate());
         match.setStadium(stadium);
         match.setStatus(MatchStatus.SCHEDULED);
+        match.setMatchImageUrl(dto.getMatchImageUrl());
 
         Match savedMatch = matchRepository.save(match);
         return mapToDTO(savedMatch);
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = {"allMatchesCache", "upcomingMatchesCache", "matchDetailsCache"}, allEntries = true)
+    public MatchDTO updateMatch(Long id, MatchRequestDTO dto) {
+        log.info(">>> Se actualizează detaliile meciului cu ID {}. Reset cache.", id);
+
+        Match match = matchRepository.findById(id)
+                .orElseThrow(() -> new CatalogException("Meciul cu ID-ul " + id + " nu a fost găsit."));
+
+        Stadium stadium = stadiumRepository.findById(dto.getStadiumId())
+                .orElseThrow(() -> new CatalogException("Stadionul nu a fost găsit!"));
+
+        match.setOpponentName(dto.getOpponentName());
+        match.setMatchDate(dto.getMatchDate());
+        match.setStadium(stadium);
+        match.setMatchImageUrl(dto.getMatchImageUrl());
+
+        Match updatedMatch = matchRepository.save(match);
+        return mapToDTO(updatedMatch);
     }
     /*
     @Override
@@ -78,15 +101,15 @@ public class MatchServiceImpl implements MatchService {
     */
 
     @Override
-    @Cacheable(value = "allMatchesCache", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
+    //@Cacheable(value = "allMatchesCache", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
     public Page<MatchDTO> getAllMatchesDTO(Pageable pageable) {
         log.info(">>> Cache MISS pentru ALL matches (Page: {})", pageable.getPageNumber());
         return matchRepository.findAll(pageable)
                 .map(this::mapToDTO); // .map pe Page păstrează metadatele de paginare
     }
-
+    /*
     @Override
-    @Cacheable(value = "upcomingMatchesCache", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
+    //@Cacheable(value = "upcomingMatchesCache", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
     public Page<MatchDTO> getUpcomingMatchesDTO(Pageable pageable) {
         log.info(">>> Cache MISS pentru UPCOMING matches (Page: {})", pageable.getPageNumber());
         return matchRepository.findByMatchDateAfterAndStatusAndIsPublishedTrue(
@@ -95,6 +118,22 @@ public class MatchServiceImpl implements MatchService {
                 pageable
         ).map(this::mapToDTO);
     }
+    */
+    @Cacheable(value = "upcomingMatchesCache",
+            key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort.toString()")
+    public SerializablePage<MatchDTO> getUpcomingMatchesDTO(Pageable pageable) {
+        log.info(">>> Cache MISS pentru UPCOMING matches (Page: {})", pageable.getPageNumber());
+
+        Page<MatchDTO> page = matchRepository
+                .findByMatchDateAfterAndStatusAndIsPublishedTrue(
+                        LocalDateTime.now(),
+                        MatchStatus.SCHEDULED,
+                        pageable
+                ).map(this::mapToDTO);
+
+        return new SerializablePage<>(page);
+    }
+
 
     @Override
     @Transactional
@@ -211,11 +250,17 @@ public class MatchServiceImpl implements MatchService {
     @Transactional
     @CacheEvict(value = {"allMatchesCache", "upcomingMatchesCache"}, allEntries = true)
     public void deleteMatch(Long id) {
-        log.info(">>> Meci șters {}. Reset cache.", id);
+        log.info(">>> Începe procesul de ștergere în cascadă pentru meciul {}. Reset cache.", id);
+
         if (!matchRepository.existsById(id)) {
             throw new CatalogException("Meciul cu ID-ul " + id + " nu există!");
         }
+
+        matchSectorPriceRepository.deleteByMatchId(id);
+        log.info(">>> Toate prețurile sectoarelor atașate meciului {} au fost șterse.", id);
+
         matchRepository.deleteById(id);
+        log.info(">>> Meciul {} a fost eliminat definitiv din catalog.", id);
     }
 
     @Override
@@ -239,10 +284,49 @@ public class MatchServiceImpl implements MatchService {
                 .orElseThrow(() -> new CatalogException("Prețul nu este configurat pentru acest sector!"));
     }
 
+    @Override
+    public SectorDTO getSectorDetailsByName(Long matchId, String sectorName) {
+        // 1. Identificăm meciul
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new CatalogException("Meciul cu ID-ul " + matchId + " nu a fost găsit."));
+
+        // 2. Găsim sectorul - Dacă aici crapă, înseamnă că numele de pe imagine nu e în DB
+        Sector sector = sectorRepository.findByStadiumIdAndName(match.getStadium().getId(), sectorName)
+                .orElseThrow(() -> new CatalogException("Configurația pentru '" + sectorName + "' nu a fost găsită în baza de date a stadionului."));
+
+        // 3. Verificăm prețul - Logica complexă cerută
+        Double price = matchSectorPriceRepository.findByMatchIdAndSectorId(matchId, sector.getId())
+                .map(MatchSectorPrice::getPrice)
+                .orElseThrow(() -> new CatalogException("Sectorul " + sectorName + " este definit, dar nu are prețuri setate pentru acest meci specific. Contactați administratorul."));
+
+        // 4. Verificăm dacă există locuri generate (pentru a evita un grid gol)
+        List<Seat> seats = sector.getSeats();
+        if (seats == null || seats.isEmpty()) {
+            throw new CatalogException("Sectorul " + sectorName + " este disponibil, dar locurile nu au fost încă generate.");
+        }
+
+        // 5. Calculăm dimensiunile (Logica ta existentă)
+        int maxRows = seats.stream().mapToInt(Seat::getRowNumber).max().orElse(0);
+        int maxSeatsPerRow = seats.stream().mapToInt(Seat::getSeatNumber).max().orElse(0);
+
+        // 6. Mapăm în SectorDTO
+        SectorDTO dto = new SectorDTO();
+        dto.setId(sector.getId());
+        dto.setName(sector.getName());
+        dto.setBasePrice(price);
+        dto.setStadiumId(match.getStadium().getId());
+        dto.setRows(maxRows);
+        dto.setSeatsPerRow(maxSeatsPerRow);
+        dto.setTotalSeats(seats.size());
+
+        return dto;
+    }
+
     private MatchDTO mapToDTO(Match match) {
         MatchDTO dto = new MatchDTO();
         dto.setId(match.getId());
         dto.setOpponentName(match.getOpponentName());
+        dto.setMatchImageUrl(match.getMatchImageUrl());
         dto.setMatchDate(match.getMatchDate());
         dto.setStatus(match.getStatus());
         dto.setStadiumName(match.getStadium().getName());

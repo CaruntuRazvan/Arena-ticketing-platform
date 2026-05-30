@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface MatchSectorPriceRepository extends JpaRepository<MatchSectorPrice, Long> {
     Optional<MatchSectorPrice> findByMatchIdAndSectorId(Long matchId, Long sectorId);
     boolean existsByMatchId(Long matchId);
+    void deleteByMatchId(Long matchId);
 }
