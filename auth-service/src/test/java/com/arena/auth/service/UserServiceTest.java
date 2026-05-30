@@ -161,8 +161,11 @@ class UserServiceTest {
     @Test
     @DisplayName("Delete User - Succes")
     void deleteUser_Success() {
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         userService.deleteUser(1L);
-        verify(userRepository).deleteById(1L);
+        verify(userRepository).findById(1L);
+        verify(userRepository).delete(testUser); // Verifică dacă în codul tău e .delete(testUser) sau .deleteById(1L)
     }
 
     @Test
