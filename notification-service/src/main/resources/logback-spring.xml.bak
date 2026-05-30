@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-    <property name="LOG_ROOT" value="D:/Facultate/master/an1/sem2/AWBD/arena-ticketing-logs" />
+    <property name="LOG_ROOT" value="${LOG_ROOT:-/app/logs}" />
 
-    <property name="SERVICE_NAME" value="ticketing" />
+    <property name="SERVICE_NAME" value="notification" />
 
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
@@ -43,6 +43,6 @@
         <appender-ref ref="ERROR_FILE" />
     </root>
 
-    <logger name="com.arena.ticketing" level="DEBUG" />
+    <logger name="com.arena.notification" level="DEBUG" />
 
 </configuration>
