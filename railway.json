@@ -1,0 +1,6 @@
+{
+  "$schema": "https://railway.railway.app/railway.schema.json",
+  "deploy": {
+    "dockerCompose": "docker-compose.prod.yml"
+  }
+}
