@@ -24,8 +24,7 @@ services:
       - arena-network
 
   discovery-server:
-    build: ./discovery-server
-    #image: ${{secrets.DOCKERHUB_USERNAME}}/discovery-server:prod
+    image: carunturazvan/discovery-server:prod
     container_name: discovery-server
     ports: ["8761:8761"]
     networks:
@@ -38,8 +37,7 @@ services:
       start_period: 30s
 
   config-server:
-    build: ./config-server
-    #image: ${{secrets.DOCKERHUB_USERNAME}}/config-server:prod
+    image: carunturazvan/config-server:prod
     container_name: config-server
     ports: ["8888:8888"]
     environment:
@@ -62,8 +60,7 @@ services:
   # 2. MICROSERVICII DE BUSINESS
   # =========================================================================
   auth-service:
-    build: ./auth-service
-    #image: ${{secrets.DOCKERHUB_USERNAME}}/auth-service:prod
+    image: carunturazvan/auth-service:prod
     container_name: auth-service
     ports: ["8081:8081"]
     healthcheck:
@@ -91,8 +88,7 @@ services:
       - arena-network
 
   catalog-service:
-    build: ./catalog-service
-    #image: ${{secrets.DOCKERHUB_USERNAME}}/catalog-service:prod
+    image: carunturazvan/catalog-service:prod
     container_name: catalog-service
     ports: [ "8082:8082" ]
     healthcheck:
@@ -121,8 +117,7 @@ services:
       - arena-network
 
   ticketing-service:
-    build: ./ticketing-service
-    #image: ${{secrets.DOCKERHUB_USERNAME}}/ticketing-service:prod
+    image: carunturazvan/ticketing-service:prod
     container_name: ticketing-service
     ports: [ "8083:8083" ]
     healthcheck:
@@ -150,8 +145,7 @@ services:
       - arena-network
 
   notification-service:
-    build: ./notification-service
-    #image: ${{secrets.DOCKERHUB_USERNAME}}/notification-service:prod
+    image: carunturazvan/notification-service:prod
     container_name: notification-service
     ports: [ "8084:8084" ]
     healthcheck:
@@ -175,8 +169,7 @@ services:
       - arena-network
 
   api-gateway:
-    build: ./api-gateway
-    #image: ${{secrets.DOCKERHUB_USERNAME}}/auth-service:prod
+    image: carunturazvan/api-gateway:prod
     container_name: api-gateway
     ports: [ "8080:8080" ]
     healthcheck:
