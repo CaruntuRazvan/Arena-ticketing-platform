@@ -11,6 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -32,6 +33,7 @@ class EmailServiceTest {
 
     @BeforeEach
     void setUp() {
+        ReflectionTestUtils.setField(emailService, "fromEmail", "test@arena.ro");
         // Folosim formatul ISO standard pe care metoda parse() îl așteaptă în codul tău
         String isoDateTime = LocalDateTime.now().plusDays(3).withNano(0).toString();
 
