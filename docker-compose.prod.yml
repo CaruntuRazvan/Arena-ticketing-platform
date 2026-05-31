@@ -194,6 +194,14 @@ services:
     networks:
       - arena-network
 
+  frontend:
+    image: carunturazvan/arena-frontend:prod
+    container_name: frontend
+    networks:
+      - arena-network
+    depends_on:
+      - api-gateway
+
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
