@@ -159,6 +159,7 @@ services:
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://discovery-server:8761/eureka/
       - EMAIL_USER=${EMAIL_USER}
       - EMAIL_APP_PASS=${EMAIL_APP_PASS}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
       - LOG_PATH=/app/logs
     depends_on:
       config-server:
