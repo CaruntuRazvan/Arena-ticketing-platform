@@ -5,10 +5,10 @@ spring:
   application:
     name: notification-service
   mail:
-    host: smtp.gmail.com
+    host: smtp.sendgrid.net
     port: 587
-    username: ${EMAIL_USER}
-    password: ${EMAIL_APP_PASS}
+    username: apikey
+    password: ${SENDGRID_API_KEY}
     properties:
       # Aici era greșeala: nu mai trebuie "mail:" încă o dată
       mail.smtp.auth: true
