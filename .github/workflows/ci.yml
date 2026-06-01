@@ -125,11 +125,13 @@ jobs:
             if docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 600 --remove-orphans; then
               echo "Deploy reușit! Versiunea: $APP_VERSION"
               echo $APP_VERSION > /root/.last_stable_version
+              docker compose -f docker-compose.prod.yml restart nginx
               docker image prune -f
             else
               echo "Deploy eșuat! Rollback la $LAST_STABLE..."
               export APP_VERSION=$LAST_STABLE
               docker compose -f docker-compose.prod.yml up -d --remove-orphans
+              docker compose -f docker-compose.prod.yml restart nginx
               echo "Rollback la $LAST_STABLE finalizat!"
               exit 1
             fi
