@@ -24,7 +24,7 @@ services:
       - arena-network
 
   discovery-server:
-    image: carunturazvan/discovery-server:prod
+    image: carunturazvan/discovery-server:${APP_VERSION:-prod}
     container_name: discovery-server
     ports: ["8761:8761"]
     networks:
@@ -37,7 +37,7 @@ services:
       start_period: 30s
 
   config-server:
-    image: carunturazvan/config-server:prod
+    image: carunturazvan/config-server:${APP_VERSION:-prod}
     container_name: config-server
     ports: ["8888:8888"]
     environment:
@@ -60,7 +60,7 @@ services:
   # 2. MICROSERVICII DE BUSINESS
   # =========================================================================
   auth-service:
-    image: carunturazvan/auth-service:prod
+    image: carunturazvan/auth-service:${APP_VERSION:-prod}
     container_name: auth-service
     ports: ["8081:8081"]
     healthcheck:
@@ -88,7 +88,7 @@ services:
       - arena-network
 
   catalog-service:
-    image: carunturazvan/catalog-service:prod
+    image: carunturazvan/catalog-service:${APP_VERSION:-prod}
     container_name: catalog-service
     ports: [ "8082:8082" ]
     healthcheck:
@@ -117,7 +117,7 @@ services:
       - arena-network
 
   ticketing-service:
-    image: carunturazvan/ticketing-service:prod
+    image: carunturazvan/ticketing-service:${APP_VERSION:-prod}
     container_name: ticketing-service
     ports: [ "8083:8083" ]
     healthcheck:
@@ -145,7 +145,7 @@ services:
       - arena-network
 
   notification-service:
-    image: carunturazvan/notification-service:prod
+    image: carunturazvan/notification-service:${APP_VERSION:-prod}
     container_name: notification-service
     ports: [ "8084:8084" ]
     healthcheck:
@@ -170,7 +170,7 @@ services:
       - arena-network
 
   api-gateway:
-    image: carunturazvan/api-gateway:prod
+    image: carunturazvan/api-gateway:${APP_VERSION:-prod}
     container_name: api-gateway
     ports: [ "8080:8080" ]
     healthcheck:
@@ -195,7 +195,7 @@ services:
       - arena-network
 
   frontend:
-    image: carunturazvan/arena-frontend:prod
+    image: carunturazvan/arena-frontend:${APP_VERSION:-prod}
     container_name: frontend
     networks:
       - arena-network
