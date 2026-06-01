@@ -115,19 +115,21 @@ jobs:
             export $(cat .env | xargs)
             export APP_VERSION=v${{ github.run_number }}
 
+            # Citim ultima versiune stabilă
+            LAST_STABLE=$(cat /root/.last_stable_version 2>/dev/null || echo "prod")
+
             echo "Tragerea imaginilor $APP_VERSION..."
             docker compose -f docker-compose.prod.yml pull
 
             echo "Deploy în curs..."
-            if docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 300 --remove-orphans; then
+            if docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 600 --remove-orphans; then
               echo "Deploy reușit! Versiunea: $APP_VERSION"
+              echo $APP_VERSION > /root/.last_stable_version
               docker image prune -f
             else
-              echo "Deploy eșuat! Rollback..."
-              PREV_VERSION=v$(( ${{ github.run_number }} - 1 ))
-              echo "Revenire la $PREV_VERSION..."
-              export APP_VERSION=$PREV_VERSION
+              echo "Deploy eșuat! Rollback la $LAST_STABLE..."
+              export APP_VERSION=$LAST_STABLE
               docker compose -f docker-compose.prod.yml up -d --remove-orphans
-              echo "Rollback la $PREV_VERSION finalizat!"
+              echo "Rollback la $LAST_STABLE finalizat!"
               exit 1
             fi
