@@ -3,9 +3,13 @@ name: Arena Ticketing CI/CD
 on:
   push:
     branches: [ dev, master ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'docs/**'
 
 jobs:
-  # 1. Build & Test: Rulează unit testele pentru tot stack-ul
+  # 1. Build & Test
   build-and-test:
     runs-on: ubuntu-latest
     strategy:
@@ -33,7 +37,7 @@ jobs:
           MAVEN_OPTS: "-XX:+EnableDynamicAgentLoading"
         run: mvn clean package
 
-  # 2. Docker Push: Construiește și urcă imaginile doar dacă testele trec
+  # 2. Docker Push cu versionare
   docker-push:
     needs: build-and-test
     runs-on: ubuntu-latest
@@ -59,8 +63,43 @@ jobs:
 
       - name: Build & Push
         run: |
-          # Dacă suntem pe master, tag-ul e 'prod', altfel e 'dev'
-          TAG=${{ github.ref == 'refs/heads/master' && 'prod' || 'dev' }}
-          
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:$TAG ./${{ matrix.service }}
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:$TAG
+          if [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            TAG="prod"
+            VERSION="v${{ github.run_number }}"
+            SHA="${{ github.sha }}"
+
+            docker build \
+              -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:$TAG \
+              -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:$VERSION \
+              -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:${SHA::7} \
+              ./${{ matrix.service }}
+
+            docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:$TAG
+            docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:$VERSION
+            docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:${SHA::7}
+          else
+            docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:dev ./${{ matrix.service }}
+            docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.service }}:dev
+          fi
+
+  # 3. Deploy automat pe server - DOAR pe master
+  deploy:
+    needs: docker-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Deploy pe VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /root/Arena-ticketing-platform
+            git pull origin master
+            export $(cat .env | xargs)
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --wait --remove-orphans
+            docker image prune -f
