@@ -34,7 +34,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 120s
 
   config-server:
     image: carunturazvan/config-server:${APP_VERSION:-prod}
@@ -55,6 +55,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 180s
 
   # =========================================================================
   # 2. MICROSERVICII DE BUSINESS
@@ -68,6 +69,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 150s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_CONFIG_IMPORT=configserver:http://config-server:8888
@@ -96,6 +98,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 150s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_CONFIG_IMPORT=configserver:http://config-server:8888
@@ -125,6 +128,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 150s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_CONFIG_IMPORT=configserver:http://config-server:8888
@@ -153,6 +157,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 150s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_CONFIG_IMPORT=configserver:http://config-server:8888
@@ -178,6 +183,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 150s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_CONFIG_IMPORT=configserver:http://config-server:8888
