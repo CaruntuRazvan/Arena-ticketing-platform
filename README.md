@@ -258,7 +258,7 @@ Pentru comunicații securizate a fost utilizat **Let's Encrypt** împreună cu *
 Serviciul **DuckDNS** este utilizat pentru asocierea adresei IP publice a serverului cu un nume de domeniu ușor de accesat și administrat.
 
 <p align="center">
-  <img src="docs/flux-trafic.png" alt="Flux Trafic" width="60%">
+  <img src="docs/flux-trafic.png" alt="Flux Trafic" width="30%">
 </p>
 
 ---
@@ -302,7 +302,7 @@ docker compose up -d --wait
 ```
 
 <p align="center">
-  <img src="docs/ci_cd.png" alt="Flux Trafic" width="70%">
+  <img src="docs/ci_cd.png" alt="Flux Trafic" width="30%">
 </p>
 
 ---
