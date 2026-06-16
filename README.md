@@ -1,6 +1,9 @@
 # 🏟️ Arena Ticketing Platform
 
-Link: https://arena-ticketing.duckdns.org/
+
+Poți accesa platforma Arena Ticketing live aici:
+
+**<a href="https://arena-ticketing.duckdns.org/" target="_blank">https://arena-ticketing.duckdns.org/</a>**
 
 ## Introducere
 
@@ -56,6 +59,95 @@ Fiecare microserviciu (Auth, Catalog, Ticketing, Notification) este construit fo
 - **Client Layer**: Include interfețe Feign utilizate pentru comunicarea între microservicii.
 
 - **Exception Handling**: Strat global de gestionare a erorilor care asigură răspunsuri HTTP standardizate (ex: 400, 404, 500) în cazul apariției unor excepții.
+
+---
+## Securitate și Gestiunea Identității
+
+Sistemul implementează un mecanism complet de autentificare și autorizare bazat pe **JWT (JSON Web Tokens)**, adaptat unei arhitecturi de microservicii și proiectat pentru a asigura atât securitatea accesului, cât și o experiență fluidă pentru utilizatori.
+
+
+### Autentificare și Autorizare
+
+- autentificare stateless folosind Spring Security și JWT
+- token-uri semnate și validate la nivelul API Gateway-ului
+- includerea informațiilor esențiale (rol, email) în JWT claims
+- parole stocate securizat folosind **BCryptPasswordEncoder**
+
+
+### Logout securizat prin Redis Blacklist
+
+Pentru invalidarea imediată a token-urilor JWT înainte de expirare:
+
+- la logout, token-ul este adăugat într-un blacklist Redis
+- API Gateway verifică blacklist-ul la fiecare request
+- token-urile invalidate sunt respinse automat cu **401 Unauthorized**
+
+### Gestionarea sesiunilor (Refresh Tokens)
+
+Pentru menținerea autentificării pe termen lung:
+
+- refresh token-urile sunt stocate în baza de date
+- durata de viață este extinsă comparativ cu access token-ul
+- token-urile vechi sunt invalidate automat la reautentificare
+
+
+### Role-Based Access Control (RBAC)
+
+Controlul accesului este implementat la nivelul API Gateway-ului:
+
+- validarea autentificării înainte ca request-urile să ajungă la microservicii
+- restricționarea endpoint-urilor administrative pe baza rolurilor utilizatorilor
+- returnarea răspunsurilor **403 Forbidden** pentru acces neautorizat
+
+---
+
+## 🚀 API Documentation (Endpoints)
+
+
+### Auth Service (/api/users)
+
+- POST /register – Înregistrare utilizator nou
+- POST /verify – Activare cont cu cod primit pe email
+- POST /resend-code – Retrimitere cod de verificare
+- POST /login – Autentificare și primire token-uri (JWT + Refresh)
+- POST /logout – Invalidarea token-ului curent (Blacklisting în Redis)
+- POST /refresh-token – Generare access token nou folosind refresh token
+- GET /profile – Obținere profil utilizator curent (necesită Header Authorization)
+- PUT /{id}/loyalty-points – Actualizare puncte fidelitate
+- DELETE /{id} – Ștergerea utilizatorului și a datelor asociate
+
+
+### Catalog Service (/api/catalog)
+
+#### Matches (/api/catalog/matches)
+
+- GET / – Listare paginată meciuri
+- GET /upcoming – Listare meciuri viitoare (cu cache)
+- POST / – Creare meci nou
+- PATCH /{id}/status – Actualizare stare meci
+- POST /{id}/publish – Publicare meci și notificare fani
+- GET /{matchId}/prices/{sectorId} – Verificare preț bilet pe sector
+
+#### Stadiums (/api/catalog/stadiums)
+
+- GET / – Listare stadioane
+- GET /{id}/sectors – Listare sectoare
+- POST /sectors – Adăugare sector nou
+
+### Ticketing Service (/api/ticketing)
+
+- POST /buy – Achiziție bilete (creare comandă)
+- POST /confirm – Confirmare plată bilete
+- GET /user/{userId} – Istoric bilete achiziționate
+- PATCH /validate/{ticketCode} – Validare bilet la intrarea pe stadion
+- GET /analytics/match/{matchId} – Raport venituri/meci
+
+
+### Notification Service (/api/notifications)
+
+- POST /ticket – Trimitere bilet PDF pe email
+- POST /send-email – Trimitere email personalizat
+- POST /broadcast-match – Notificare în masă către toți utilizatorii despre un meci nou
 
 ---
 
@@ -353,3 +445,45 @@ Prometheus colectează automat metricile expuse de fiecare microserviciu prin Sp
 - **Endpoint metrici**: `/actuator/prometheus`
 - **Scrape interval**: `10s`
 - **Scop**: colectare de date în timp real cu impact minim asupra performanței
+
+---
+
+## 🔮 Roadmap & Evoluție (Future Improvements)
+
+Deși sistemul este complet funcțional și pregătit pentru producție, există mai multe direcții de evoluție pentru a crește scalabilitatea, reziliența și conformitatea cu standardele enterprise.
+
+
+### Optimizări Arhitecturale
+
+- **Event-Driven Architecture (Kafka / RabbitMQ)**  
+  Migrarea de la comunicarea sincronă (Feign) la un model asincron bazat pe evenimente, pentru decuplarea serviciilor și procesare mai robustă a fluxurilor (ex: ticketing → notifications).
+
+- **Migrare la Kubernetes (K8s)**  
+  Înlocuirea Eureka + Docker Compose cu Kubernetes pentru orchestrare nativă, autoscaling și self-healing.
+
+- **Identity Provider dedicat (Keycloak)**  
+  Externalizarea autentificării pentru suport avansat: MFA, OAuth2, social login și management centralizat al rolurilor.
+
+
+### Observabilitate și Debugging
+
+- **Centralized Logging (ELK / Grafana Loki)**  
+  Agregarea logurilor din toate microserviciile într-un sistem centralizat pentru căutare și analiză unificată.
+
+- **Distributed Tracing (Micrometer + Zipkin/Tempo)**  
+  Urmărirea completă a request-urilor prin toate microserviciile pentru identificarea bottleneck-urilor și latențelor.
+
+
+## Reziliență și Performanță
+
+- **Circuit Breaker avansat (Resilience4j)**  
+  Implementarea de fallback-uri inteligente și graceful degradation în caz de eșec al serviciilor dependente.
+
+
+## Gestiunea dinamică a resurselor (Imagini)
+
+- **Object Storage (AWS S3 / MinIO)**  
+  Migrarea fișierelor statice (imagini stadioane, echipe) către un sistem de stocare scalabil.
+
+- **Upload prin API**  
+  Endpoint dedicat pentru încărcarea imaginilor (multipart/form-data), cu salvare automată în storage și stocare URL în DB.
