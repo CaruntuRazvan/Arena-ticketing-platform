@@ -25,6 +25,14 @@ const AdminMatches = () => {
         fetchMatches();
     }, [currentPage]);
 
+    const loadSectors = async () => {
+        try {
+            const sectorsData = await adminMatchesService.getStadiumSectors(1);
+            setSectors(sectorsData);
+        } catch (err) {
+            console.error("Eroare la încărcarea sectoarelor:", err);
+        }
+    };
     const fetchMatches = async () => {
         setLoading(true);
         try {
@@ -199,7 +207,21 @@ const AdminMatches = () => {
                     </div>
 
                     <button
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={async () => {
+                            // 1. Resetăm formularul
+                            resetForm();
+
+                            try {
+                                const sectorsData = await adminMatchesService.getStadiumSectors(1);
+                                setSectors(sectorsData);
+                            } catch (err) {
+                                console.error("Eroare la încărcarea sectoarelor:", err);
+                                alert("Nu s-au putut încărca sectoarele stadionului.");
+                            }
+
+                            // 3. Deschidem modalul
+                            setIsModalOpen(true);
+                        }}
                         className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] flex items-center gap-3 hover:bg-red-600 transition-all shadow-xl active:scale-95"
                     >
                         <Plus size={18} /> Adaugă Meci Nou
